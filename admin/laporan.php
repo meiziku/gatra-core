@@ -596,83 +596,87 @@ if ($tab === 'rekap_shu' || $tab === 'pembagian_shu' || isset($_GET['export'])) 
 // 3. EXPORT EXCEL (CSV) PER TAB
 // =========================================================================
 if (isset($_GET['export']) && $_GET['export'] === 'csv') {
+    if (ob_get_level()) {
+        ob_end_clean();
+    }
+    ini_set('display_errors', '0');
     header('Content-Type: text/csv; charset=utf-8');
     header('Content-Disposition: attachment; filename=Laporan_' . ucfirst($tab) . '_' . date('Ymd_His') . '.csv');
     $out = fopen('php://output', 'w');
     fputs($out, "\xEF\xBB\xBF"); // BOM UTF-8
 
-    fputcsv($out, ['KOPERASI SIMPAN PINJAM GATRA TEKNIKA'], ';');
-    fputcsv($out, [strtoupper($validTabs[$tab])], ';');
-    fputcsv($out, ['Periode: ' . tgl_dmy($tglMulai) . ' s/d ' . tgl_dmy($tglSelesai) . ' (Tahun ' . $tahunBuku . ')'], ';');
-    fputcsv($out, ['Tanggal Unduh: ' . tgl_indo(date('Y-m-d'), true)], ';');
-    fputcsv($out, [], ';');
+    fputcsv($out, ['KOPERASI SIMPAN PINJAM GATRA TEKNIKA'], ';', '"', '\\');
+    fputcsv($out, [strtoupper($validTabs[$tab])], ';', '"', '\\');
+    fputcsv($out, ['Periode: ' . tgl_dmy($tglMulai) . ' s/d ' . tgl_dmy($tglSelesai) . ' (Tahun ' . $tahunBuku . ')'], ';', '"', '\\');
+    fputcsv($out, ['Tanggal Unduh: ' . tgl_indo(date('Y-m-d'), true)], ';', '"', '\\');
+    fputcsv($out, [], ';', '"', '\\');
 
     if ($tab === 'simpanan_wajib') {
-        fputcsv($out, ['No', 'No. Anggota', 'Nama Anggota', 'Pekerjaan', 'No. Telp', 'Saldo Awal', 'Setoran Periode', 'Penarikan Periode', 'Saldo Akhir'], ';');
+        fputcsv($out, ['No', 'No. Anggota', 'Nama Anggota', 'Pekerjaan', 'No. Telp', 'Saldo Awal', 'Setoran Periode', 'Penarikan Periode', 'Saldo Akhir'], ';', '"', '\\');
         $no = 1;
         foreach ($dataSimpananWajib as $r) {
-            fputcsv($out, [$no++, $r['no_anggota'], $r['nama'], $r['pekerjaan'], $r['no_telp'], $r['saldo_awal'], $r['setor_periode'], $r['tarik_periode'], $r['saldo_akhir']], ';');
+            fputcsv($out, [$no++, $r['no_anggota'], $r['nama'], $r['pekerjaan'], $r['no_telp'], $r['saldo_awal'], $r['setor_periode'], $r['tarik_periode'], $r['saldo_akhir']], ';', '"', '\\');
         }
-        fputcsv($out, ['TOTAL KESELURUHAN', '', '', '', '', $totWajibAwal, $totWajibSetor, $totWajibTarik, $totWajibAkhir], ';');
+        fputcsv($out, ['TOTAL KESELURUHAN', '', '', '', '', $totWajibAwal, $totWajibSetor, $totWajibTarik, $totWajibAkhir], ';', '"', '\\');
     } elseif ($tab === 'simpanan_manasuka') {
-        fputcsv($out, ['No', 'No. Anggota', 'Nama Anggota', 'Pekerjaan', 'No. Telp', 'Saldo Awal', 'Setoran Periode', 'Penarikan Periode', 'Saldo Akhir'], ';');
+        fputcsv($out, ['No', 'No. Anggota', 'Nama Anggota', 'Pekerjaan', 'No. Telp', 'Saldo Awal', 'Setoran Periode', 'Penarikan Periode', 'Saldo Akhir'], ';', '"', '\\');
         $no = 1;
         foreach ($dataSimpananManasuka as $r) {
-            fputcsv($out, [$no++, $r['no_anggota'], $r['nama'], $r['pekerjaan'], $r['no_telp'], $r['saldo_awal'], $r['setor_periode'], $r['tarik_periode'], $r['saldo_akhir']], ';');
+            fputcsv($out, [$no++, $r['no_anggota'], $r['nama'], $r['pekerjaan'], $r['no_telp'], $r['saldo_awal'], $r['setor_periode'], $r['tarik_periode'], $r['saldo_akhir']], ';', '"', '\\');
         }
-        fputcsv($out, ['TOTAL KESELURUHAN', '', '', '', '', $totManasukaAwal, $totManasukaSetor, $totManasukaTarik, $totManasukaAkhir], ';');
+        fputcsv($out, ['TOTAL KESELURUHAN', '', '', '', '', $totManasukaAwal, $totManasukaSetor, $totManasukaTarik, $totManasukaAkhir], ';', '"', '\\');
     } elseif ($tab === 'laporan_hasil_usaha') {
         $header = ['Kode Akun', 'Nama Rekening Pendapatan & Beban'];
         for ($m = 1; $m <= 12; $m++) $header[] = $monthNames[$m];
         $header[] = 'Total (Rp)';
-        fputcsv($out, $header, ';');
+        fputcsv($out, $header, ';', '"', '\\');
 
-        fputcsv($out, ['I. PENDAPATAN USAHA', ''], ';');
+        fputcsv($out, ['I. PENDAPATAN USAHA', ''], ';', '"', '\\');
         foreach ($listPendapatanBulanan as $p) {
             $row = [$p['kode'], $p['nama']];
             for ($m = 1; $m <= 12; $m++) $row[] = $p['bln'][$m];
             $row[] = $p['total'];
-            fputcsv($out, $row, ';');
+            fputcsv($out, $row, ';', '"', '\\');
         }
         $rowSubPend = ['', 'TOTAL PENDAPATAN USAHA'];
         for ($m = 1; $m <= 12; $m++) $rowSubPend[] = $subtotalPendBln[$m];
         $rowSubPend[] = $totalHasilPendapatan;
-        fputcsv($out, $rowSubPend, ';');
-        fputcsv($out, [], ';');
+        fputcsv($out, $rowSubPend, ';', '"', '\\');
+        fputcsv($out, [], ';', '"', '\\');
 
-        fputcsv($out, ['II. BEBAN OPERASIONAL', ''], ';');
+        fputcsv($out, ['II. BEBAN OPERASIONAL', ''], ';', '"', '\\');
         foreach ($listPengeluaranBulanan as $p) {
             $row = [$p['kode'], $p['nama']];
             for ($m = 1; $m <= 12; $m++) $row[] = $p['bln'][$m];
             $row[] = $p['total'];
-            fputcsv($out, $row, ';');
+            fputcsv($out, $row, ';', '"', '\\');
         }
         $rowSubBeban = ['', 'TOTAL BEBAN OPERASIONAL'];
         for ($m = 1; $m <= 12; $m++) $rowSubBeban[] = $subtotalBebanBln[$m];
         $rowSubBeban[] = $totalHasilPengeluaran;
-        fputcsv($out, $rowSubBeban, ';');
-        fputcsv($out, [], ';');
+        fputcsv($out, $rowSubBeban, ';', '"', '\\');
+        fputcsv($out, [], ';', '"', '\\');
 
         $rowSHU = ['', 'SISA HASIL USAHA (SHU) BULANAN'];
         for ($m = 1; $m <= 12; $m++) $rowSHU[] = $shuBulanan[$m];
         $rowSHU[] = $shuTahunBerjalan;
-        fputcsv($out, $rowSHU, ';');
+        fputcsv($out, $rowSHU, ';', '"', '\\');
     } elseif ($tab === 'neraca') {
-        fputcsv($out, ['NERACA KOPERASI SIMPAN PINJAM GATRA TEKNIKA'], ';');
-        fputcsv($out, ['Kode', 'Akun Neraca', 'Saldo (Rp)'], ';');
+        fputcsv($out, ['NERACA KOPERASI SIMPAN PINJAM GATRA TEKNIKA'], ';', '"', '\\');
+        fputcsv($out, ['Kode', 'Akun Neraca', 'Saldo (Rp)'], ';', '"', '\\');
         foreach ($neracaCalculated as $gk => $g) {
-            fputcsv($out, [$gk, $g['nama_kategori'], $g['subtotal']], ';');
+            fputcsv($out, [$gk, $g['nama_kategori'], $g['subtotal']], ';', '"', '\\');
             foreach ($g['items'] as $it) {
-                fputcsv($out, ['  ' . $it['kode'], '  ' . $it['nama'] . ($it['is_kontra'] ? ' (Kontra)' : ''), $it['saldo']], ';');
+                fputcsv($out, ['  ' . $it['kode'], '  ' . $it['nama'] . ($it['is_kontra'] ? ' (Kontra)' : ''), $it['saldo']], ';', '"', '\\');
             }
         }
-        fputcsv($out, [], ';');
-        fputcsv($out, ['TOTAL AKTIVA', '', $totalAktivaNeraca], ';');
-        fputcsv($out, ['TOTAL PASIVA', '', $totalPasivaNeraca], ';');
-        fputcsv($out, ['STATUS NERACA', '', $isNeracaBalance ? 'SEIMBANG (BALANCE)' : 'SELISIH: ' . rupiah($selisihNeraca)], ';');
+        fputcsv($out, [], ';', '"', '\\');
+        fputcsv($out, ['TOTAL AKTIVA', '', $totalAktivaNeraca], ';', '"', '\\');
+        fputcsv($out, ['TOTAL PASIVA', '', $totalPasivaNeraca], ';', '"', '\\');
+        fputcsv($out, ['STATUS NERACA', '', $isNeracaBalance ? 'SEIMBANG (BALANCE)' : 'SELISIH: ' . rupiah($selisihNeraca)], ';', '"', '\\');
     } elseif ($tab === 'rekap_shu') {
-        fputcsv($out, ['REKAPITULASI HAK SISA HASIL USAHA (SHU) PER ANGGOTA'], ';');
-        fputcsv($out, ['No', 'No. Anggota', 'Nama Anggota', 'Simp. Pokok', 'Simp. Wajib', 'Jasa Pinjaman', 'SHU Pokok', 'SHU Wajib', 'SHU Pinjaman', 'Bunga Manasuka', 'Total Diterima'], ';');
+        fputcsv($out, ['REKAPITULASI HAK SISA HASIL USAHA (SHU) PER ANGGOTA'], ';', '"', '\\');
+        fputcsv($out, ['No', 'No. Anggota', 'Nama Anggota', 'Simp. Pokok', 'Simp. Wajib', 'Jasa Pinjaman', 'SHU Pokok', 'SHU Wajib', 'SHU Pinjaman', 'Bunga Manasuka', 'Total Diterima'], ';', '"', '\\');
         $no = 1;
         foreach ($dataRekapShuAnggota as $r) {
             fputcsv($out, [
@@ -687,7 +691,7 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
                 round($r['shu_jp']),
                 round($r['bunga_manasuka']),
                 round($r['total_diterima'])
-            ], ';');
+            ], ';', '"', '\\');
         }
         fputcsv($out, [
             'TOTAL KESELURUHAN', '', '',
@@ -699,15 +703,15 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
             round($totAllSHUJP),
             round($totAllBungaManasuka),
             round($totAllSHUAnggota)
-        ], ';');
+        ], ';', '"', '\\');
     } elseif ($tab === 'pembagian_shu') {
-        fputcsv($out, ['ALOKASI POS PEMBAGIAN SHU RESMI (AD/ART)'], ';');
-        fputcsv($out, ['No', 'Pos Alokasi SHU', 'Persentase (%)', 'Alokasi Dana (Rp)'], ';');
+        fputcsv($out, ['ALOKASI POS PEMBAGIAN SHU RESMI (AD/ART)'], ';', '"', '\\');
+        fputcsv($out, ['No', 'Pos Alokasi SHU', 'Persentase (%)', 'Alokasi Dana (Rp)'], ';', '"', '\\');
         $no = 1;
         foreach ($shuPembagianCalculated as $pos) {
-            fputcsv($out, [$no++, $pos['nama'], $pos['persen'] . '%', $pos['nominal']], ';');
+            fputcsv($out, [$no++, $pos['nama'], $pos['persen'] . '%', $pos['nominal']], ';', '"', '\\');
         }
-        fputcsv($out, ['TOTAL PEMBAGIAN SHU', '', '100%', $totalAlokasiShuRp], ';');
+        fputcsv($out, ['TOTAL PEMBAGIAN SHU', '', '100%', $totalAlokasiShuRp], ';', '"', '\\');
     }
 
     fclose($out);

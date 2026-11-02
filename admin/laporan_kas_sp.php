@@ -254,14 +254,18 @@ $saldoKasSpSaatIni = $allTimeMasuk - $allTimeKeluar;
 
 // Handle Export CSV
 if (isset($_GET['export']) && $_GET['export'] === 'csv') {
+    if (ob_get_level()) {
+        ob_end_clean();
+    }
+    ini_set('display_errors', '0');
     header('Content-Type: text/csv; charset=utf-8');
     header('Content-Disposition: attachment; filename=Laporan_Kas_SP_' . date('Ymd_His') . '.csv');
     $out = fopen('php://output', 'w');
     fputs($out, "\xEF\xBB\xBF"); // BOM UTF-8
-    fputcsv($out, ['LAPORAN BUKU KAS TRANSAKSI KEUANGAN SP - KOPERASI GATRA TEKNIKA'], ';');
-    fputcsv($out, ['Periode: ' . tgl_dmy($tglMulai) . ' s/d ' . tgl_dmy($tglSelesai)], ';');
-    fputcsv($out, ['Tanggal Unduh: ' . tgl_indo(date('Y-m-d'), true)], ';');
-    fputcsv($out, [], ';');
+    fputcsv($out, ['LAPORAN BUKU KAS TRANSAKSI KEUANGAN SP - KOPERASI GATRA TEKNIKA'], ';', '"', '\\');
+    fputcsv($out, ['Periode: ' . tgl_dmy($tglMulai) . ' s/d ' . tgl_dmy($tglSelesai)], ';', '"', '\\');
+    fputcsv($out, ['Tanggal Unduh: ' . tgl_indo(date('Y-m-d'), true)], ';', '"', '\\');
+    fputcsv($out, [], ';', '"', '\\');
     fputcsv($out, [
         'No',
         'Tanggal',
@@ -273,7 +277,7 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
         'Kas Masuk',
         'Kas Keluar',
         'Saldo Kas Kumulatif (Rp)'
-    ], ';');
+    ], ';', '"', '\\');
 
     $no = 1;
     foreach ($filteredData as $item) {
@@ -288,11 +292,11 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
             $item['kas_masuk'],
             $item['kas_keluar'],
             $item['saldo_kumulatif']
-        ], ';');
+        ], ';', '"', '\\');
     }
 
-    fputcsv($out, [], ';');
-    fputcsv($out, ['', '', '', 'TOTAL PERIODE', '', '', '', $totalMasukPeriode, $totalKeluarPeriode, $saldoAkhirPeriode], ';');
+    fputcsv($out, [], ';', '"', '\\');
+    fputcsv($out, ['', '', '', 'TOTAL PERIODE', '', '', '', $totalMasukPeriode, $totalKeluarPeriode, $saldoAkhirPeriode], ';', '"', '\\');
     fclose($out);
     exit;
 }

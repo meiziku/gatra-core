@@ -331,15 +331,19 @@ $rekomNoBuktiMut = "MUT-{$ym}-" . str_pad($nextNumMut, 3, '0', STR_PAD_LEFT);
 // 5. EXPORT CSV
 // =========================================================================
 if (isset($_GET['export']) && $_GET['export'] === 'csv') {
+    if (ob_get_level()) {
+        ob_end_clean();
+    }
+    ini_set('display_errors', '0');
     header('Content-Type: text/csv; charset=utf-8');
     header('Content-Disposition: attachment; filename=Buku_' . ucfirst($tipeKas) . '_' . date('Ymd_His') . '.csv');
     $out = fopen('php://output', 'w');
     fputs($out, "\xEF\xBB\xBF"); // BOM UTF-8
-    fputcsv($out, ['BUKU ' . strtoupper($pageTitle) . ' - KOPERASI GATRA TEKNIKA'], ';');
-    fputcsv($out, ['Periode: ' . tgl_dmy($tglMulai) . ' s/d ' . tgl_dmy($tglSelesai)], ';');
-    fputcsv($out, ['Tanggal Unduh: ' . tgl_indo(date('Y-m-d'), true)], ';');
-    fputcsv($out, [], ';');
-    fputcsv($out, ['Tanggal', 'No. Bukti', 'Keterangan', 'Kategori', 'Kas Masuk', 'Kas Keluar', 'Saldo'], ';');
+    fputcsv($out, ['BUKU ' . strtoupper($pageTitle) . ' - KOPERASI GATRA TEKNIKA'], ';', '"', '\\');
+    fputcsv($out, ['Periode: ' . tgl_dmy($tglMulai) . ' s/d ' . tgl_dmy($tglSelesai)], ';', '"', '\\');
+    fputcsv($out, ['Tanggal Unduh: ' . tgl_indo(date('Y-m-d'), true)], ';', '"', '\\');
+    fputcsv($out, [], ';', '"', '\\');
+    fputcsv($out, ['Tanggal', 'No. Bukti', 'Keterangan', 'Kategori', 'Kas Masuk', 'Kas Keluar', 'Saldo'], ';', '"', '\\');
 
     // Saldo Awal
     fputcsv($out, [
@@ -350,7 +354,7 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
         0,
         0,
         $saldoAwalPeriode
-    ], ';');
+    ], ';', '"', '\\');
 
     foreach ($filteredData as $row) {
         fputcsv($out, [
@@ -361,11 +365,11 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
             $row['kas_masuk'],
             $row['kas_keluar'],
             $row['saldo']
-        ], ';');
+        ], ';', '"', '\\');
     }
 
-    fputcsv($out, [], ';');
-    fputcsv($out, ['TOTAL MUTASI PERIODE', '', '', '', $totalMasukPeriode, $totalKeluarPeriode, $saldoAkhirPeriode], ';');
+    fputcsv($out, [], ';', '"', '\\');
+    fputcsv($out, ['TOTAL MUTASI PERIODE', '', '', '', $totalMasukPeriode, $totalKeluarPeriode, $saldoAkhirPeriode], ';', '"', '\\');
     fclose($out);
     exit;
 }
