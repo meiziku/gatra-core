@@ -54,8 +54,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         ]);
 
         set_flash('success', "Pengajuan pinjaman ($no_pinjaman) sebesar " . rupiah($jumlah_pinjaman) . " berhasil diajukan! Menunggu verifikasi pengurus koperasi.");
-        header('Location: pengajuan.php');
-        exit;
+        redirect('pengajuan.php');
     } else {
         set_flash('error', 'Nominal pinjaman minimal adalah Rp 500.000.');
     }

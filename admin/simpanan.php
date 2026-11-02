@@ -31,8 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     } else {
         set_flash('error', 'Silakan pilih anggota dan masukkan nominal yang valid.');
     }
-    header('Location: simpanan.php');
-    exit;
+    redirect('simpanan.php');
 }
 
 // 2. Handle Hapus Transaksi Simpanan
@@ -44,8 +43,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     } else {
         set_flash('error', 'ID simpanan tidak valid.');
     }
-    header('Location: simpanan.php');
-    exit;
+    redirect('simpanan.php');
 }
 
 // Ambil daftar seluruh anggota untuk dropdown modal

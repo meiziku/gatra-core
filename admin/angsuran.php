@@ -49,8 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     } else {
         set_flash('error', 'Silakan pilih pinjaman dan periksa nominal pembayaran.');
     }
-    header('Location: angsuran.php');
-    exit;
+    redirect('angsuran.php');
 }
 
 // 2. Handle Hapus Pembayaran Angsuran
@@ -82,8 +81,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     } else {
         set_flash('error', 'ID angsuran tidak valid.');
     }
-    header('Location: angsuran.php');
-    exit;
+    redirect('angsuran.php');
 }
 
 // Ambil daftar pinjaman berjalan untuk form

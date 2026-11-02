@@ -34,8 +34,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 
     set_setting('data_koperasi', json_encode($dataKoperasi, JSON_UNESCAPED_UNICODE));
     set_flash('success', 'Data Identitas Koperasi berhasil disimpan dan diperbarui.');
-    header('Location: pengaturan.php?tab=koperasi');
-    exit;
+    redirect('pengaturan.php?tab=koperasi');
 }
 
 // =========================================================================
@@ -81,8 +80,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         set_flash('warning', "Ketentuan Pembagian SHU disimpan. Perhatian: Total alokasi saat ini <strong>{$totalFormatted}%</strong> (disarankan berjumlah tepat 100,00%).");
     }
     
-    header('Location: pengaturan.php?tab=shu');
-    exit;
+    redirect('pengaturan.php?tab=shu');
 }
 
 // =========================================================================
@@ -158,8 +156,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         set_flash('warning', "Data Saldo Awal Neraca disimpan. Perhatian: <strong>Aktiva dan Pasiva belum seimbang</strong> (Selisih: {$formattedSelisih}).");
     }
 
-    header('Location: pengaturan.php?tab=neraca');
-    exit;
+    redirect('pengaturan.php?tab=neraca');
 }
 
 // =========================================================================
@@ -203,8 +200,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 
     set_setting('akun_labarugi', json_encode($lrData, JSON_UNESCAPED_UNICODE));
     set_flash('success', 'Daftar Kode dan Rekening Pendapatan serta Pengeluaran (Laba/Rugi) berhasil disimpan.');
-    header('Location: pengaturan.php?tab=labarugi');
-    exit;
+    redirect('pengaturan.php?tab=labarugi');
 }
 
 // =========================================================================

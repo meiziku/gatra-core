@@ -45,8 +45,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($nominal <= 0) {
             set_flash('error', 'Nominal kas harus lebih besar dari Rp 0.');
-            header("Location: $pageSelf");
-            exit;
+            redirect($pageSelf);
         }
 
         if ($noBukti === '') {
@@ -81,8 +80,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             set_flash('error', 'Gagal menyimpan transaksi: ' . $e->getMessage());
         }
 
-        header("Location: $pageSelf");
-        exit;
+        redirect($pageSelf);
     }
 
     // EDIT TRANSAKSI
@@ -101,8 +99,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($id <= 0 || $nominal <= 0) {
             set_flash('error', 'Data perubahan tidak valid.');
-            header("Location: $pageSelf");
-            exit;
+            redirect($pageSelf);
         }
 
         $kasMasuk = ($jenisTransaksi === 'masuk') ? $nominal : 0;
@@ -129,8 +126,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             set_flash('error', 'Gagal memperbarui transaksi: ' . $e->getMessage());
         }
 
-        header("Location: $pageSelf");
-        exit;
+        redirect($pageSelf);
     }
 
     // MUTASI KAS ANTAR UNIT (KHUSUS KAS UMUM)
@@ -150,8 +146,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (!array_key_exists($kasTerkait, $validTerkait)) {
             set_flash('error', 'Pilih unit kas terkait yang valid (Kas Bank, Kas Toko, atau Kas SP).');
-            header("Location: $pageSelf");
-            exit;
+            redirect($pageSelf);
         }
 
         $rawNominal = str_replace(['Rp', '.', ' '], '', $_POST['nominal'] ?? '0');
@@ -160,8 +155,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($nominal <= 0) {
             set_flash('error', 'Nominal mutasi kas harus lebih besar dari Rp 0.');
-            header("Location: $pageSelf");
-            exit;
+            redirect($pageSelf);
         }
 
         $namaTerkait = $validTerkait[$kasTerkait];
@@ -222,8 +216,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             set_flash('error', 'Gagal memproses mutasi kas: ' . $e->getMessage());
         }
 
-        header("Location: $pageSelf");
-        exit;
+        redirect($pageSelf);
     }
 
     // HAPUS TRANSAKSI
@@ -243,8 +236,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 set_flash('success', 'Catatan transaksi buku kas berhasil dihapus.');
             }
         }
-        header("Location: $pageSelf");
-        exit;
+        redirect($pageSelf);
     }
 }
 

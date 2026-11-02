@@ -32,16 +32,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (!$anggotaId || !$targetDana || !$tenorBulan) {
             set_flash('error', 'Harap lengkapi semua kolom wajib pendaftaran simpanan pendidikan.');
-            header('Location: simpanan_pendidikan.php');
-            exit;
+            redirect('simpanan_pendidikan.php');
         }
 
         // Hitung setoran bulanan resmi berdasarkan matriks
         $setoranBulanan = get_setoran_simpanan_pendidikan($targetDana, $tenorBulan);
         if ($setoranBulanan <= 0) {
             set_flash('error', 'Kombinasi target dana dan jangka waktu tidak valid.');
-            header('Location: simpanan_pendidikan.php');
-            exit;
+            redirect('simpanan_pendidikan.php');
         }
 
         // Hitung tanggal jatuh tempo
@@ -75,8 +73,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             set_flash('error', 'Gagal mendaftarkan simpanan pendidikan: ' . $e->getMessage());
         }
 
-        header('Location: simpanan_pendidikan.php');
-        exit;
+        redirect('simpanan_pendidikan.php');
     }
 
     // 2. Input Setoran Bulanan
@@ -91,8 +88,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (!$spId || $nominal <= 0) {
             set_flash('error', 'Pilih rekening simpanan pendidikan dan masukkan nominal setoran yang valid.');
-            header('Location: simpanan_pendidikan.php');
-            exit;
+            redirect('simpanan_pendidikan.php');
         }
 
         // Ambil data rekening SP
@@ -102,8 +98,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (!$sp) {
             set_flash('error', 'Data rekening simpanan pendidikan tidak ditemukan.');
-            header('Location: simpanan_pendidikan.php');
-            exit;
+            redirect('simpanan_pendidikan.php');
         }
 
         // Hitung setoran ke-berapa
@@ -136,8 +131,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             set_flash('error', 'Gagal mencatat setoran: ' . $e->getMessage());
         }
 
-        header('Location: simpanan_pendidikan.php');
-        exit;
+        redirect('simpanan_pendidikan.php');
     }
 
     // 3. Ubah Status Rekening
@@ -150,8 +144,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmtUp->execute([$statusBaru, $spId]);
             set_flash('success', "Status simpanan pendidikan berhasil diperbarui menjadi: " . ucfirst($statusBaru));
         }
-        header('Location: simpanan_pendidikan.php');
-        exit;
+        redirect('simpanan_pendidikan.php');
     }
 
     // 4. Hapus Transaksi Setoran
@@ -164,8 +157,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } catch (Exception $e) {
             set_flash('error', 'Gagal menghapus setoran: ' . $e->getMessage());
         }
-        header('Location: simpanan_pendidikan.php');
-        exit;
+        redirect('simpanan_pendidikan.php');
     }
 }
 

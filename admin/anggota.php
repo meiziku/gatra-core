@@ -37,12 +37,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $stmtAnggota->execute([$userId, $no_anggota, $nama, $nik, $alamat, $no_telp, $pekerjaan, $tanggal_bergabung]);
 
         set_flash('success', "Anggota baru <strong>$nama ($no_anggota)</strong> berhasil didaftarkan! Pekerjaan: <strong>$pekerjaan</strong>, Username: <strong>$username</strong>, Password Default: <strong>$password_raw</strong>");
-        header('Location: anggota.php');
-        exit;
+        redirect('anggota.php');
     } else {
         set_flash('error', 'Nama anggota wajib diisi.');
-        header('Location: anggota.php');
-        exit;
+        redirect('anggota.php');
     }
 }
 
@@ -74,8 +72,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     } else {
         set_flash('error', 'Data tidak valid atau nama anggota kosong.');
     }
-    header('Location: anggota.php');
-    exit;
+    redirect('anggota.php');
 }
 
 // 3. Handle Reset Password ke Default (anggota123)
@@ -106,8 +103,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     } else {
         set_flash('error', 'Anggota tidak ditemukan.');
     }
-    header('Location: anggota.php');
-    exit;
+    redirect('anggota.php');
 }
 
 // 4. Handle Ubah Status Aktif / Tidak Aktif (Toggle)
@@ -127,8 +123,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     } else {
         set_flash('error', 'Anggota tidak ditemukan.');
     }
-    header('Location: anggota.php');
-    exit;
+    redirect('anggota.php');
 }
 
 // 5. Handle Hapus Anggota (Cascade Clean & Safe)
@@ -184,8 +179,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             set_flash('error', 'Data anggota tidak ditemukan.');
         }
     }
-    header('Location: anggota.php');
-    exit;
+    redirect('anggota.php');
 }
 
 // Sorting Parameter
@@ -215,7 +209,6 @@ $pageSubtitle = 'Kelola data identitas anggota, status keanggotaan, dan akun aks
 $activePage = 'anggota';
 
 require_once __DIR__ . '/header.php';
-?>
 ?>
 
 <div class="card">

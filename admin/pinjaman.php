@@ -69,8 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     } else {
         set_flash('error', 'Silakan lengkapi data pinjaman dengan benar.');
     }
-    header('Location: pinjaman.php');
-    exit;
+    redirect('pinjaman.php');
 }
 
 // 2. Handle Hapus Pinjaman
@@ -83,8 +82,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     } else {
         set_flash('error', 'ID pinjaman tidak valid.');
     }
-    header('Location: pinjaman.php');
-    exit;
+    redirect('pinjaman.php');
 }
 
 // Ambil daftar seluruh anggota

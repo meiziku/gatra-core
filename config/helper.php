@@ -7,6 +7,9 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+if (!ob_get_level()) {
+    ob_start();
+}
 /**
  * Format angka ke format Rupiah (Menjamin 1 baris tidak pernah terputus 2 baris)
  */
@@ -152,6 +155,19 @@ function base_url($path = '') {
 }
 
 /**
+ * Redirect aman dengan deteksi headers_sent dan fallback HTML/JS
+ */
+function redirect($url) {
+    if (!headers_sent()) {
+        header('Location: ' . $url);
+        exit;
+    }
+    echo '<script type="text/javascript">window.location.href=' . json_encode($url) . ';</script>';
+    echo '<noscript><meta http-equiv="refresh" content="0;url=' . htmlspecialchars($url) . '"></noscript>';
+    exit;
+}
+
+/**
  * Cek status login
  */
 function is_logged_in() {
@@ -179,8 +195,7 @@ function current_user() {
 function require_login() {
     if (!is_logged_in()) {
         set_flash('error', 'Silakan login terlebih dahulu untuk mengakses halaman ini.');
-        header('Location: ' . base_url('login.php'));
-        exit;
+        redirect(base_url('login.php'));
     }
 }
 
@@ -191,8 +206,7 @@ function require_admin() {
     require_login();
     if ($_SESSION['role'] !== 'admin') {
         set_flash('error', 'Akses ditolak. Halaman ini khusus untuk Administrator Koperasi.');
-        header('Location: ' . base_url('anggota/index.php'));
-        exit;
+        redirect(base_url('anggota/index.php'));
     }
 }
 
@@ -203,8 +217,7 @@ function require_anggota() {
     require_login();
     if ($_SESSION['role'] !== 'anggota') {
         // Admin boleh melihat atau diarahkan ke dashboard admin
-        header('Location: ' . base_url('admin/index.php'));
-        exit;
+        redirect(base_url('admin/index.php'));
     }
 }
 
