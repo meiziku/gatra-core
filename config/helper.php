@@ -10,6 +10,7 @@ if (session_status() === PHP_SESSION_NONE) {
 if (!ob_get_level()) {
     ob_start();
 }
+
 /**
  * Format angka ke format Rupiah (Menjamin 1 baris tidak pernah terputus 2 baris)
  */
