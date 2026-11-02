@@ -2,13 +2,13 @@
 /**
  * Halaman Input & Data Simpanan - Admin Koperasi Gatra Mandiri
  */
-$pageTitle = 'Simpanan Anggota';
-$pageSubtitle = 'Input transaksi dan kelola data simpanan pokok, wajib, dan sukarela';
-$activePage = 'simpanan';
+require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../config/helper.php';
+require_admin();
 
-require_once __DIR__ . '/header.php';
+$currentUser = current_user();
 
-// Handle Input Transaksi Simpanan Baru
+// 1. Handle Input Transaksi Simpanan Baru
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'tambah_simpanan') {
     $anggota_id = (int)$_POST['anggota_id'];
     $jenis_simpanan = $_POST['jenis_simpanan'] ?? 'wajib';
@@ -28,11 +28,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $stmt = $db->prepare("INSERT INTO simpanan (anggota_id, jenis_simpanan, tipe_transaksi, nominal, tanggal, keterangan, petugas) VALUES (?, ?, ?, ?, ?, ?, ?)");
         $stmt->execute([$anggota_id, $jenis_simpanan, $tipe_transaksi, $nominal, $tanggal, $keterangan, $petugas]);
         set_flash('success', 'Transaksi simpanan sebesar ' . rupiah($nominal) . ' berhasil disimpan!');
-        header('Location: simpanan.php');
-        exit;
     } else {
         set_flash('error', 'Silakan pilih anggota dan masukkan nominal yang valid.');
     }
+    header('Location: simpanan.php');
+    exit;
+}
+
+// 2. Handle Hapus Transaksi Simpanan
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'hapus_simpanan') {
+    $simpananId = (int)($_POST['simpanan_id'] ?? 0);
+    if ($simpananId > 0) {
+        $db->prepare("DELETE FROM simpanan WHERE id = ?")->execute([$simpananId]);
+        set_flash('success', 'Catatan transaksi simpanan berhasil dihapus.');
+    } else {
+        set_flash('error', 'ID simpanan tidak valid.');
+    }
+    header('Location: simpanan.php');
+    exit;
 }
 
 // Ambil daftar seluruh anggota untuk dropdown modal
@@ -51,6 +64,12 @@ $listSimpanan = $db->query("
     JOIN anggota a ON s.anggota_id = a.id
     ORDER BY s.tanggal DESC, s.id DESC
 ")->fetchAll();
+
+$pageTitle = 'Simpanan Anggota';
+$pageSubtitle = 'Input transaksi dan kelola data simpanan pokok, wajib, dan sukarela';
+$activePage = 'simpanan';
+
+require_once __DIR__ . '/header.php';
 ?>
 
 <!-- Ringkasan Jenis Simpanan -->
@@ -125,11 +144,12 @@ $listSimpanan = $db->query("
           <th>Tipe</th>
           <th>Nominal</th>
           <th>Keterangan</th>
+          <th style="width: 50px; text-align: center;">Aksi</th>
         </tr>
       </thead>
       <tbody>
         <?php if (empty($listSimpanan)): ?>
-          <tr><td colspan="8" style="text-align:center; padding:32px; color:var(--text-subtle);">Belum ada catatan transaksi simpanan.</td></tr>
+          <tr><td colspan="9" style="text-align:center; padding:32px; color:var(--text-subtle);">Belum ada catatan transaksi simpanan.</td></tr>
         <?php else: ?>
           <?php foreach ($listSimpanan as $s): ?>
             <tr>
@@ -167,6 +187,11 @@ $listSimpanan = $db->query("
                     <span style="color:var(--text-subtle);">-</span>
                 <?php endif; ?>
               </td>
+              <td style="text-align: center;">
+                <button type="button" class="btn btn-outline btn-sm" style="color: var(--danger); border-color: #fee2e2; padding: 4px 8px;" onclick="konfirmasiHapusSimpanan(<?= $s['id'] ?>, '<?= htmlspecialchars(addslashes($s['nama_anggota'])) ?>', '<?= rupiah($s['nominal']) ?>')" title="Hapus Transaksi">
+                  <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                </button>
+              </td>
             </tr>
           <?php endforeach; ?>
         <?php endif; ?>
@@ -174,6 +199,12 @@ $listSimpanan = $db->query("
     </table>
   </div>
 </div>
+
+<!-- Form Hapus Transaksi Simpanan Tersembunyi -->
+<form id="formHapusSimpanan" method="POST" action="simpanan.php" style="display:none;">
+  <input type="hidden" name="action" value="hapus_simpanan">
+  <input type="hidden" name="simpanan_id" id="hapus_simpanan_id">
+</form>
 
 <!-- Modal Input Transaksi Simpanan -->
 <div class="modal-overlay" id="modalTambahSimpanan">
@@ -391,6 +422,13 @@ document.addEventListener('DOMContentLoaded', function() {
     openModal('modalTambahSimpanan');
   <?php endif; ?>
 });
+
+function konfirmasiHapusSimpanan(id, nama, nominal) {
+  if (confirm('Yakin ingin menghapus transaksi simpanan ' + nominal + ' milik ' + nama + '? Saldo anggota akan langsung disesuaikan.')) {
+    document.getElementById('hapus_simpanan_id').value = id;
+    document.getElementById('formHapusSimpanan').submit();
+  }
+}
 </script>
 
 <?php require_once __DIR__ . '/footer.php'; ?>

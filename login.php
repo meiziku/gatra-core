@@ -29,7 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt->execute([$username]);
         $user = $stmt->fetch();
 
-        if ($user && (password_verify($password, $user['password']) || $password === 'admin123' || $password === 'budi123' || $password === 'siti123' || $password === 'hendra123')) {
+        if ($user && password_verify($password, $user['password'])) {
             // Login Berhasil
             $_SESSION['user_id'] = $user['id'];
             $_SESSION['username'] = $user['username'];
@@ -96,7 +96,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <label for="password" class="form-label">Kata Sandi</label>
         <input type="password" id="password" name="password" class="form-control" placeholder="Masukkan kata sandi" required>
         <div style="display: flex; justify-content: flex-end; margin-top: 6px;">
-          <a href="#" onclick="alert('Untuk keperluan uji coba, silakan klik salah satu akun demo di bawah.'); return false;" style="font-size: 0.78rem; color: var(--primary); text-decoration: none; font-weight: 500;">Lupa sandi?</a>
+          <a href="#" onclick="alert('Silakan hubungi Administrator Koperasi untuk bantuan reset kata sandi.'); return false;" style="font-size: 0.78rem; color: var(--primary); text-decoration: none; font-weight: 500;">Lupa sandi?</a>
         </div>
       </div>
 
@@ -106,32 +106,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       </button>
     </form>
 
-    <!-- Quick Demo Accounts for Seamless Testing -->
-    <div class="demo-account-box">
-      <h4>
-        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-        Pilih Cepat Akun Demo (Uji Coba):
-      </h4>
-      <div class="demo-btn-group" style="margin-bottom: 8px;">
-        <button type="button" class="btn-demo-fill" onclick="fillDemoLogin('admin', 'admin123')">
-          <strong>👑 Admin</strong><br><small style="color:var(--text-muted)">admin / admin123</small>
-        </button>
-        <button type="button" class="btn-demo-fill" onclick="fillDemoLogin('budi', 'budi123')">
-          <strong>👤 Anggota (Budi)</strong><br><small style="color:var(--text-muted)">Ada pinjaman & simpanan</small>
-        </button>
-      </div>
-      <div class="demo-btn-group">
-        <button type="button" class="btn-demo-fill" onclick="fillDemoLogin('siti', 'siti123')">
-          <strong>👤 Anggota (Siti)</strong><br><small style="color:var(--text-muted)">Simpanan Rp5.3jt</small>
-        </button>
-        <button type="button" class="btn-demo-fill" onclick="fillDemoLogin('hendra', 'hendra123')">
-          <strong>👤 Anggota (Hendra)</strong><br><small style="color:var(--text-muted)">Bebas Pinjaman</small>
-        </button>
-      </div>
-    </div>
-
-    <div style="margin-top: 24px; text-align: center; font-size: 0.75rem; color: var(--text-subtle);">
-      &copy; <?= date('Y') ?> Gatra Teknika &bull; Siap Hosting di Rumahweb
+    <div style="margin-top: 28px; text-align: center; font-size: 0.78rem; color: var(--text-subtle);">
+      &copy; <?= date('Y') ?> Gatra Teknika &bull; Sistem Informasi Koperasi Simpan Pinjam
     </div>
   </div>
 

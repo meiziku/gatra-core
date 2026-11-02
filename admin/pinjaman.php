@@ -2,13 +2,13 @@
 /**
  * Halaman Pinjaman Anggota - Admin Koperasi Gatra Mandiri
  */
-$pageTitle = 'Pinjaman Anggota';
-$pageSubtitle = 'Input pinjaman baru dan pantau status sisa pinjaman berjalan';
-$activePage = 'pinjaman';
+require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../config/helper.php';
+require_admin();
 
-require_once __DIR__ . '/header.php';
+$currentUser = current_user();
 
-// Handle Input Pinjaman Baru
+// 1. Handle Input Pinjaman Baru
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'tambah_pinjaman') {
     $anggota_id = (int)$_POST['anggota_id'];
 
@@ -66,11 +66,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         ]);
 
         set_flash('success', "Pinjaman $no_pinjaman sebesar " . rupiah($jumlah_pinjaman) . " berhasil diterbitkan!");
-        header('Location: pinjaman.php');
-        exit;
     } else {
         set_flash('error', 'Silakan lengkapi data pinjaman dengan benar.');
     }
+    header('Location: pinjaman.php');
+    exit;
+}
+
+// 2. Handle Hapus Pinjaman
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'hapus_pinjaman') {
+    $pinjamanId = (int)($_POST['pinjaman_id'] ?? 0);
+    if ($pinjamanId > 0) {
+        $db->prepare("DELETE FROM angsuran WHERE pinjaman_id = ?")->execute([$pinjamanId]);
+        $db->prepare("DELETE FROM pinjaman WHERE id = ?")->execute([$pinjamanId]);
+        set_flash('success', 'Data pinjaman dan seluruh riwayat pembayarannya berhasil dihapus.');
+    } else {
+        set_flash('error', 'ID pinjaman tidak valid.');
+    }
+    header('Location: pinjaman.php');
+    exit;
 }
 
 // Ambil daftar seluruh anggota
@@ -79,15 +93,21 @@ $daftarAnggota = $db->query("SELECT id, no_anggota, nama FROM anggota WHERE stat
 // Ambil list seluruh pinjaman beserta akumulasi angsuran terbayar
 $listPinjaman = $db->query("
     SELECT p.*, a.nama as nama_anggota, a.no_anggota,
-           COALESCE(SUM(ag.jumlah_bayar), 0) as total_dibayar,
-           COALESCE(SUM(ag.angsuran_pokok), 0) as pokok_dibayar,
-           COUNT(ag.id) as kali_angsuran
+            COALESCE(SUM(ag.jumlah_bayar), 0) as total_dibayar,
+            COALESCE(SUM(ag.angsuran_pokok), 0) as pokok_dibayar,
+            COUNT(ag.id) as kali_angsuran
     FROM pinjaman p
     JOIN anggota a ON p.anggota_id = a.id
     LEFT JOIN angsuran ag ON p.id = ag.pinjaman_id
     GROUP BY p.id
     ORDER BY p.id DESC
 ")->fetchAll();
+
+$pageTitle = 'Pinjaman Anggota';
+$pageSubtitle = 'Input pinjaman baru dan pantau status sisa pinjaman berjalan';
+$activePage = 'pinjaman';
+
+require_once __DIR__ . '/header.php';
 ?>
 
 <!-- Action Bar -->
@@ -157,15 +177,16 @@ $listPinjaman = $db->query("
                   <span class="badge badge-warning">Berjalan</span>
                 <?php endif; ?>
               </td>
-              <td>
+              <td style="white-space: nowrap;">
                 <?php if (!$isLunas): ?>
                   <a href="angsuran.php?pinjaman_id=<?= $p['id'] ?>" class="btn btn-secondary btn-sm" title="Catat Angsuran">
                     <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
                     Bayar
                   </a>
-                <?php else: ?>
-                  <span style="font-size:0.75rem; color:var(--text-subtle);">Selesai</span>
                 <?php endif; ?>
+                <button type="button" class="btn btn-outline btn-sm" style="color: var(--danger); border-color: #fee2e2; padding: 4px 8px; margin-left: 4px;" onclick="konfirmasiHapusPinjaman(<?= $p['id'] ?>, '<?= htmlspecialchars(addslashes($p['no_pinjaman'])) ?>', '<?= htmlspecialchars(addslashes($p['nama_anggota'])) ?>')" title="Hapus Pinjaman">
+                  <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                </button>
               </td>
             </tr>
           <?php endforeach; ?>
@@ -174,6 +195,12 @@ $listPinjaman = $db->query("
     </table>
   </div>
 </div>
+
+<!-- Form Hapus Pinjaman Tersembunyi -->
+<form id="formHapusPinjaman" method="POST" action="pinjaman.php" style="display:none;">
+  <input type="hidden" name="action" value="hapus_pinjaman">
+  <input type="hidden" name="pinjaman_id" id="hapus_pinjaman_id">
+</form>
 
 <!-- Modal Input Pinjaman Baru -->
 <div class="modal-overlay" id="modalTambahPinjaman">
@@ -464,6 +491,13 @@ document.addEventListener('DOMContentLoaded', function() {
     openModal('modalTambahPinjaman');
   <?php endif; ?>
 });
+
+function konfirmasiHapusPinjaman(id, noPinj, nama) {
+  if (confirm('Yakin ingin menghapus data pinjaman ' + noPinj + ' atas nama ' + nama + '? Seluruh riwayat pembayarannya juga akan dihapus.')) {
+    document.getElementById('hapus_pinjaman_id').value = id;
+    document.getElementById('formHapusPinjaman').submit();
+  }
+}
 </script>
 
 <?php require_once __DIR__ . '/footer.php'; ?>

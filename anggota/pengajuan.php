@@ -2,11 +2,20 @@
 /**
  * Simulasi & Form Pengajuan Pinjaman - Anggota Koperasi Gatra Mandiri
  */
-$pageTitle = 'Simulasi Pinjaman';
-$pageSubtitle = 'Hitung estimasi cicilan bulanan dan ajukan pembiayaan koperasi';
-$activePage = 'simulasi';
+require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../config/helper.php';
+require_login();
 
-require_once __DIR__ . '/header.php';
+$currentUser = current_user();
+
+// Ambil info lengkap anggota berdasarkan user_id atau anggota_id
+$stmtAg = $db->prepare("SELECT * FROM anggota WHERE user_id = ? OR id = ? LIMIT 1");
+$stmtAg->execute([$currentUser['id'], $currentUser['anggota_id'] ?? 0]);
+$memberProfile = $stmtAg->fetch();
+
+if (!$memberProfile) {
+    die("Data profil anggota tidak ditemukan. Hubungi pengurus koperasi.");
+}
 
 $anggotaId = $memberProfile['id'];
 
@@ -51,6 +60,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         set_flash('error', 'Nominal pinjaman minimal adalah Rp 500.000.');
     }
 }
+
+$pageTitle = 'Simulasi Pinjaman';
+$pageSubtitle = 'Hitung estimasi cicilan bulanan dan ajukan pembiayaan koperasi';
+$activePage = 'simulasi';
+
+require_once __DIR__ . '/header.php';
 ?>
 
 <div style="display: grid; grid-template-columns: 1fr 380px; gap: 24px; align-items: flex-start;">

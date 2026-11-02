@@ -2,11 +2,11 @@
 /**
  * Manajemen Data Anggota - Admin Koperasi Gatra Teknika
  */
-$pageTitle = 'Data Anggota';
-$pageSubtitle = 'Kelola data identitas anggota, status keanggotaan, dan akun akses';
-$activePage = 'anggota';
+require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../config/helper.php';
+require_admin();
 
-require_once __DIR__ . '/header.php';
+$currentUser = current_user();
 
 // 1. Handle Tambah Anggota Baru
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'tambah_anggota') {
@@ -32,7 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $stmtUser->execute([$username, $password_hash, $nama]);
         $userId = $db->lastInsertId();
 
-        // 2. Buat Record Anggota (Simpanan pokok awal ditiadakan sesuai ketentuan baru)
+        // 2. Buat Record Anggota
         $stmtAnggota = $db->prepare("INSERT INTO anggota (user_id, no_anggota, nama, nik, alamat, no_telp, pekerjaan, tanggal_bergabung, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'aktif')");
         $stmtAnggota->execute([$userId, $no_anggota, $nama, $nik, $alamat, $no_telp, $pekerjaan, $tanggal_bergabung]);
 
@@ -41,6 +41,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         exit;
     } else {
         set_flash('error', 'Nama anggota wajib diisi.');
+        header('Location: anggota.php');
+        exit;
     }
 }
 
@@ -69,11 +71,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         }
 
         set_flash('success', "Data anggota <strong>$nama</strong> berhasil diperbarui.");
-        header('Location: anggota.php');
-        exit;
     } else {
         set_flash('error', 'Data tidak valid atau nama anggota kosong.');
     }
+    header('Location: anggota.php');
+    exit;
 }
 
 // 3. Handle Reset Password ke Default (anggota123)
@@ -101,11 +103,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         }
 
         set_flash('success', "Kata sandi untuk <strong>" . htmlspecialchars($ag['nama']) . "</strong> (Username: <strong>" . htmlspecialchars($ag['username']) . "</strong>) berhasil direset ke default: <code>$defaultPass</code>");
-        header('Location: anggota.php');
-        exit;
     } else {
         set_flash('error', 'Anggota tidak ditemukan.');
     }
+    header('Location: anggota.php');
+    exit;
 }
 
 // 4. Handle Ubah Status Aktif / Tidak Aktif (Toggle)
@@ -122,14 +124,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $db->prepare("UPDATE anggota SET status = ?, tanggal_keluar = ? WHERE id = ?")->execute([$targetStatus, $tanggalKeluar, $anggotaId]);
         $statusText = $targetStatus === 'aktif' ? '<span class="text-green">Aktif</span>' : '<span class="text-red">Tidak Aktif</span>';
         set_flash('success', "Status anggota <strong>" . htmlspecialchars($nama) . "</strong> berhasil diubah menjadi: $statusText");
-        header('Location: anggota.php');
-        exit;
     } else {
         set_flash('error', 'Anggota tidak ditemukan.');
     }
+    header('Location: anggota.php');
+    exit;
 }
 
-// 5. Handle Hapus Anggota
+// 5. Handle Hapus Anggota (Cascade Clean & Safe)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'hapus_anggota') {
     $anggotaId = (int)($_POST['anggota_id'] ?? 0);
 
@@ -146,11 +148,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $ag = $stmtAg->fetch();
 
         if ($ag) {
+            // 1. Bersihkan riwayat setoran & simpanan pendidikan
+            $stmtSp = $db->prepare("SELECT id FROM simpanan_pendidikan WHERE anggota_id = ?");
+            $stmtSp->execute([$anggotaId]);
+            $spIds = $stmtSp->fetchAll(PDO::FETCH_COLUMN);
+            if (!empty($spIds)) {
+                $inQuery = implode(',', array_map('intval', $spIds));
+                $db->exec("DELETE FROM simpanan_pendidikan_setoran WHERE simpanan_pendidikan_id IN ($inQuery)");
+                $db->prepare("DELETE FROM simpanan_pendidikan WHERE anggota_id = ?")->execute([$anggotaId]);
+            }
+
+            // 2. Bersihkan pinjaman & angsuran (pinjaman lunas / riwayat lama)
+            $stmtP = $db->prepare("SELECT id FROM pinjaman WHERE anggota_id = ?");
+            $stmtP->execute([$anggotaId]);
+            $pIds = $stmtP->fetchAll(PDO::FETCH_COLUMN);
+            if (!empty($pIds)) {
+                $inQueryP = implode(',', array_map('intval', $pIds));
+                $db->exec("DELETE FROM angsuran WHERE pinjaman_id IN ($inQueryP)");
+                $db->prepare("DELETE FROM pinjaman WHERE anggota_id = ?")->execute([$anggotaId]);
+            }
+
+            // 3. Bersihkan transaksi simpanan
+            $db->prepare("DELETE FROM simpanan WHERE anggota_id = ?")->execute([$anggotaId]);
+
+            // 4. Hapus data anggota
             $db->prepare("DELETE FROM anggota WHERE id = ?")->execute([$anggotaId]);
+
+            // 5. Hapus akun pengguna (users)
             if (!empty($ag['user_id'])) {
                 $db->prepare("DELETE FROM users WHERE id = ?")->execute([$ag['user_id']]);
             }
-            set_flash('success', "Data anggota <strong>" . htmlspecialchars($ag['nama']) . "</strong> berhasil dihapus dari sistem.");
+
+            set_flash('success', "Data anggota <strong>" . htmlspecialchars($ag['nama']) . "</strong> dan seluruh arsip riwayatnya berhasil dihapus dari sistem.");
+        } else {
+            set_flash('error', 'Data anggota tidak ditemukan.');
         }
     }
     header('Location: anggota.php');
@@ -178,6 +209,13 @@ $listAnggota = $db->query("
     LEFT JOIN users u ON a.user_id = u.id
     ORDER BY $orderBy
 ")->fetchAll();
+
+$pageTitle = 'Data Anggota';
+$pageSubtitle = 'Kelola data identitas anggota, status keanggotaan, dan akun akses';
+$activePage = 'anggota';
+
+require_once __DIR__ . '/header.php';
+?>
 ?>
 
 <div class="card">

@@ -2,13 +2,13 @@
 /**
  * Halaman Bayar Angsuran Pinjaman - Admin Koperasi Gatra Teknika
  */
-$pageTitle = 'Pembayaran Angsuran';
-$pageSubtitle = 'Input pembayaran angsuran pinjaman anggota dan pelunasan';
-$activePage = 'angsuran';
+require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../config/helper.php';
+require_admin();
 
-require_once __DIR__ . '/header.php';
+$currentUser = current_user();
 
-// Handle Input Pembayaran Angsuran
+// 1. Handle Input Pembayaran Angsuran
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'bayar_angsuran') {
     $pinjaman_id = (int)$_POST['pinjaman_id'];
     $angsuran_ke = (int)$_POST['angsuran_ke'];
@@ -46,12 +46,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         } else {
             set_flash('success', "Pembayaran angsuran ke-$angsuran_ke sebesar " . rupiah($jumlah_bayar) . " berhasil dicatat.");
         }
-
-        header('Location: angsuran.php');
-        exit;
     } else {
         set_flash('error', 'Silakan pilih pinjaman dan periksa nominal pembayaran.');
     }
+    header('Location: angsuran.php');
+    exit;
+}
+
+// 2. Handle Hapus Pembayaran Angsuran
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'hapus_angsuran') {
+    $angsuranId = (int)($_POST['angsuran_id'] ?? 0);
+    if ($angsuranId > 0) {
+        $stmtCek = $db->prepare("SELECT pinjaman_id FROM angsuran WHERE id = ?");
+        $stmtCek->execute([$angsuranId]);
+        $pinjId = $stmtCek->fetchColumn();
+
+        $db->prepare("DELETE FROM angsuran WHERE id = ?")->execute([$angsuranId]);
+
+        // Cek kembali status pinjaman jika sebelumnya lunas
+        if ($pinjId) {
+            $stmtCheck = $db->prepare("
+                SELECT p.total_harus_dibayar, COALESCE(SUM(a.jumlah_bayar), 0) as total_dibayar
+                FROM pinjaman p
+                LEFT JOIN angsuran a ON p.id = a.pinjaman_id
+                WHERE p.id = ?
+                GROUP BY p.id
+            ");
+            $stmtCheck->execute([$pinjId]);
+            $checkData = $stmtCheck->fetch();
+            if ($checkData && $checkData['total_dibayar'] < $checkData['total_harus_dibayar']) {
+                $db->prepare("UPDATE pinjaman SET status = 'berjalan' WHERE id = ?")->execute([$pinjId]);
+            }
+        }
+        set_flash('success', 'Catatan pembayaran angsuran berhasil dihapus dan status tagihan telah disesuaikan.');
+    } else {
+        set_flash('error', 'ID angsuran tidak valid.');
+    }
+    header('Location: angsuran.php');
+    exit;
 }
 
 // Ambil daftar pinjaman berjalan untuk form
@@ -87,6 +119,12 @@ $listAngsuran = $db->query("
     JOIN anggota ag ON p.anggota_id = ag.id
     ORDER BY a.tanggal_bayar DESC, a.id DESC
 ")->fetchAll();
+
+$pageTitle = 'Pembayaran Angsuran';
+$pageSubtitle = 'Input pembayaran angsuran pinjaman anggota dan pelunasan';
+$activePage = 'angsuran';
+
+require_once __DIR__ . '/header.php';
 ?>
 
 <style>
@@ -270,11 +308,12 @@ $listAngsuran = $db->query("
             <th>Total Bayar</th>
             <th>Pokok / Bunga</th>
             <th>Keterangan</th>
+            <th style="width: 50px; text-align: center;">Aksi</th>
           </tr>
         </thead>
         <tbody>
           <?php if (empty($listAngsuran)): ?>
-            <tr><td colspan="7" style="text-align:center; padding:32px; color:var(--text-subtle);">Belum ada pembayaran angsuran tercatat.</td></tr>
+            <tr><td colspan="8" style="text-align:center; padding:32px; color:var(--text-subtle);">Belum ada pembayaran angsuran tercatat.</td></tr>
           <?php else: ?>
             <?php foreach ($listAngsuran as $a): ?>
               <tr>
@@ -307,6 +346,11 @@ $listAngsuran = $db->query("
                       <span style="color:var(--text-subtle);">-</span>
                   <?php endif; ?>
                 </td>
+                <td style="text-align: center;">
+                  <button type="button" class="btn btn-outline btn-sm" style="color: var(--danger); border-color: #fee2e2; padding: 4px 8px;" onclick="konfirmasiHapusAngsuran(<?= $a['id'] ?>, '<?= htmlspecialchars(addslashes($a['no_pinjaman'])) ?>', <?= $a['angsuran_ke'] ?>, '<?= rupiah($a['jumlah_bayar']) ?>')" title="Hapus Angsuran">
+                    <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                  </button>
+                </td>
               </tr>
             <?php endforeach; ?>
           <?php endif; ?>
@@ -315,6 +359,12 @@ $listAngsuran = $db->query("
     </div>
   </div>
 </div>
+
+<!-- Form Hapus Angsuran Tersembunyi -->
+<form id="formHapusAngsuran" method="POST" action="angsuran.php" style="display:none;">
+  <input type="hidden" name="action" value="hapus_angsuran">
+  <input type="hidden" name="angsuran_id" id="hapus_angsuran_id">
+</form>
 
 <script>
 // Format Otomatis Input Rupiah dengan Rp dan Titik Pemisah Ribuan
@@ -418,6 +468,13 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 });
+
+function konfirmasiHapusAngsuran(id, noPinj, angsKe, nominal) {
+  if (confirm('Yakin ingin menghapus pembayaran angsuran ke-' + angsKe + ' sebesar ' + nominal + ' untuk pinjaman ' + noPinj + '? Saldo kewajiban pinjaman akan dikembalikan.')) {
+    document.getElementById('hapus_angsuran_id').value = id;
+    document.getElementById('formHapusAngsuran').submit();
+  }
+}
 </script>
 
 <?php require_once __DIR__ . '/footer.php'; ?>
