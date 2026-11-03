@@ -267,7 +267,7 @@ function render_flash() {
     
     return '<div class="alert ' . $type_class . '">
         <span class="alert-icon">' . $icon . '</span>
-        <div class="alert-content">' . htmlspecialchars($flash['message']) . '</div>
+        <div class="alert-content">' . strip_tags($flash['message'], '<strong><b><em><i><u><code><span><small><br>') . '</div>
         <button type="button" class="alert-close" onclick="this.parentElement.remove()">&times;</button>
     </div>';
 }

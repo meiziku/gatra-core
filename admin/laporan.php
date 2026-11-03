@@ -1423,26 +1423,140 @@ include __DIR__ . '/header.php';
           Daftar alokasi SHU Simpanan Pokok, SHU Simpanan Wajib, SHU Jasa Pinjaman, dan Bunga Simpanan Manasuka.
         </p>
       </div>
-      <div>
-        <input type="text" class="form-control" style="width: 250px; padding: 7px 12px; font-size: 0.85rem;" placeholder="Cari nama, no. anggota..." data-table-search="tableRekapShu">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span class="badge badge-info" style="font-size: 0.76rem; padding: 6px 10px; font-weight: 600;">
+          💡 Klik judul kolom untuk mengurutkan (A-Z / 1-9)
+        </span>
+        <input type="text" class="form-control" style="width: 240px; padding: 7px 12px; font-size: 0.85rem;" placeholder="Cari nama, no. anggota..." data-table-search="tableRekapShu">
       </div>
     </div>
+
+    <style>
+    /* Styling Header Spreadsheet Interaktif */
+    .table th.th-sortable {
+      cursor: pointer;
+      user-select: none;
+      position: relative;
+      transition: background-color 0.15s ease, color 0.15s ease;
+      border-right: 1px solid #cbd5e1;
+      padding: 10px 12px !important;
+    }
+    .table th.th-sortable:hover {
+      background-color: #e2e8f0 !important;
+    }
+    .th-content {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      width: 100%;
+    }
+    .sort-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      font-size: 0.72rem;
+      color: #94a3b8;
+      border-radius: 3px;
+      background: rgba(0,0,0,0.04);
+      transition: all 0.15s ease;
+      flex-shrink: 0;
+    }
+    .th-sortable:hover .sort-icon {
+      color: var(--secondary);
+      background: rgba(0,0,0,0.08);
+    }
+    .th-sortable.sorted-asc {
+      background-color: #e0f2fe !important;
+      color: #0369a1 !important;
+    }
+    .th-sortable.sorted-asc .sort-icon {
+      color: #0284c7;
+      background: #bae6fd;
+      font-weight: 900;
+    }
+    .th-sortable.sorted-desc {
+      background-color: #e0f2fe !important;
+      color: #0369a1 !important;
+    }
+    .th-sortable.sorted-desc .sort-icon {
+      color: #0284c7;
+      background: #bae6fd;
+      font-weight: 900;
+    }
+    </style>
 
     <div class="table-freeze-container" style="overflow-x: auto; max-width: 100%;">
       <table class="table" id="tableRekapShu" style="min-width: 1300px; font-size: 0.82rem;">
         <thead>
           <tr style="background: #f8fafc; border-bottom: 2px solid #cbd5e1;">
-            <th style="width: 45px; text-align: center; white-space: nowrap;">No</th>
-            <th style="width: 130px; white-space: nowrap;">No. Anggota</th>
-            <th style="min-width: 160px; white-space: nowrap;">Nama Anggota</th>
-            <th style="text-align: right; width: 125px; white-space: nowrap;">Simp. Pokok</th>
-            <th style="text-align: right; width: 125px; white-space: nowrap;">Simp. Wajib</th>
-            <th style="text-align: right; width: 130px; white-space: nowrap;">Jasa Pinjaman</th>
-            <th style="text-align: right; width: 125px; color: #1e40af; background: #eff6ff; white-space: nowrap;">SHU Pokok</th>
-            <th style="text-align: right; width: 125px; color: #1e40af; background: #eff6ff; white-space: nowrap;">SHU Wajib</th>
-            <th style="text-align: right; width: 130px; color: #1e40af; background: #eff6ff; white-space: nowrap;">SHU Pinjaman</th>
-            <th style="text-align: right; width: 135px; color: #047857; background: #ecfdf5; white-space: nowrap;">Bunga Manasuka</th>
-            <th style="text-align: right; width: 145px; color: #15803d; font-weight: 800; background: #dcfce7; white-space: nowrap;">Total Diterima</th>
+            <th class="th-sortable" data-col="0" data-type="number" style="width: 55px; text-align: center; white-space: nowrap;" title="Urutkan berdasarkan Nomor">
+              <div class="th-content" style="justify-content: center;">
+                <span>No</span>
+                <span class="sort-icon">⇅</span>
+              </div>
+            </th>
+            <th class="th-sortable" data-col="1" data-type="text" style="width: 130px; white-space: nowrap;" title="Urutkan berdasarkan Nomor Anggota">
+              <div class="th-content">
+                <span>No. Anggota</span>
+                <span class="sort-icon">⇅</span>
+              </div>
+            </th>
+            <th class="th-sortable" data-col="2" data-type="text" style="min-width: 170px; white-space: nowrap;" title="Urutkan berdasarkan Nama Anggota">
+              <div class="th-content">
+                <span>Nama Anggota</span>
+                <span class="sort-icon">⇅</span>
+              </div>
+            </th>
+            <th class="th-sortable" data-col="3" data-type="amount" style="text-align: right; width: 130px; white-space: nowrap;" title="Urutkan berdasarkan Simp. Pokok">
+              <div class="th-content" style="justify-content: flex-end;">
+                <span>Simp. Pokok</span>
+                <span class="sort-icon">⇅</span>
+              </div>
+            </th>
+            <th class="th-sortable" data-col="4" data-type="amount" style="text-align: right; width: 130px; white-space: nowrap;" title="Urutkan berdasarkan Simp. Wajib">
+              <div class="th-content" style="justify-content: flex-end;">
+                <span>Simp. Wajib</span>
+                <span class="sort-icon">⇅</span>
+              </div>
+            </th>
+            <th class="th-sortable" data-col="5" data-type="amount" style="text-align: right; width: 135px; white-space: nowrap;" title="Urutkan berdasarkan Jasa Pinjaman">
+              <div class="th-content" style="justify-content: flex-end;">
+                <span>Jasa Pinjaman</span>
+                <span class="sort-icon">⇅</span>
+              </div>
+            </th>
+            <th class="th-sortable" data-col="6" data-type="amount" style="text-align: right; width: 130px; color: #1e40af; background: #eff6ff; white-space: nowrap;" title="Urutkan berdasarkan SHU Pokok">
+              <div class="th-content" style="justify-content: flex-end;">
+                <span>SHU Pokok</span>
+                <span class="sort-icon">⇅</span>
+              </div>
+            </th>
+            <th class="th-sortable" data-col="7" data-type="amount" style="text-align: right; width: 130px; color: #1e40af; background: #eff6ff; white-space: nowrap;" title="Urutkan berdasarkan SHU Wajib">
+              <div class="th-content" style="justify-content: flex-end;">
+                <span>SHU Wajib</span>
+                <span class="sort-icon">⇅</span>
+              </div>
+            </th>
+            <th class="th-sortable" data-col="8" data-type="amount" style="text-align: right; width: 135px; color: #1e40af; background: #eff6ff; white-space: nowrap;" title="Urutkan berdasarkan SHU Pinjaman">
+              <div class="th-content" style="justify-content: flex-end;">
+                <span>SHU Pinjaman</span>
+                <span class="sort-icon">⇅</span>
+              </div>
+            </th>
+            <th class="th-sortable" data-col="9" data-type="amount" style="text-align: right; width: 140px; color: #047857; background: #ecfdf5; white-space: nowrap;" title="Urutkan berdasarkan Bunga Manasuka">
+              <div class="th-content" style="justify-content: flex-end;">
+                <span>Bunga Manasuka</span>
+                <span class="sort-icon">⇅</span>
+              </div>
+            </th>
+            <th class="th-sortable" data-col="10" data-type="amount" style="text-align: right; width: 155px; color: #15803d; font-weight: 800; background: #dcfce7; white-space: nowrap;" title="Urutkan berdasarkan Total Diterima">
+              <div class="th-content" style="justify-content: flex-end;">
+                <span>Total Diterima</span>
+                <span class="sort-icon">⇅</span>
+              </div>
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -1594,7 +1708,74 @@ document.addEventListener('DOMContentLoaded', function() {
       });
     });
   });
+
+  // Aktifkan Fitur Spreadsheet Sort untuk Rekap SHU
+  initRekapShuSpreadsheetSort();
 });
+
+// Fitur Urutkan Tabel (Spreadsheet Sort) untuk Rekap SHU
+function initRekapShuSpreadsheetSort() {
+  const table = document.getElementById('tableRekapShu');
+  if (!table) return;
+
+  const headers = table.querySelectorAll('thead th.th-sortable');
+  const tbody = table.querySelector('tbody');
+  if (!tbody) return;
+
+  headers.forEach(th => {
+    th.addEventListener('click', function() {
+      const colIndex = parseInt(this.getAttribute('data-col'), 10);
+      const colType = this.getAttribute('data-type') || 'text';
+      const isAsc = this.classList.contains('sorted-asc');
+      const newDirection = isAsc ? 'desc' : 'asc';
+
+      // Reset semua header lain
+      headers.forEach(h => {
+        h.classList.remove('sorted-asc', 'sorted-desc');
+        const icon = h.querySelector('.sort-icon');
+        if (icon) icon.textContent = '⇅';
+      });
+
+      // Terapkan indikator arah pengurutan pada header aktif
+      this.classList.add(newDirection === 'asc' ? 'sorted-asc' : 'sorted-desc');
+      const curIcon = this.querySelector('.sort-icon');
+      if (curIcon) curIcon.textContent = (newDirection === 'asc' ? '▲' : '▼');
+
+      // Ambil seluruh baris data di tbody (abaikan baris kosong jika ada)
+      const rows = Array.from(tbody.querySelectorAll('tr'));
+      if (rows.length <= 1 && rows[0].querySelector('td[colspan]')) return;
+
+      rows.sort((rowA, rowB) => {
+        const cellA = rowA.children[colIndex];
+        const cellB = rowB.children[colIndex];
+        if (!cellA || !cellB) return 0;
+
+        let valA = cellA.textContent.trim();
+        let valB = cellB.textContent.trim();
+
+        if (colType === 'amount' || colType === 'number') {
+          // Bersihkan Rp, titik ribuan, spasi
+          let numA = parseFloat(valA.replace(/[^0-9,-]/g, '').replace(',', '.')) || 0;
+          let numB = parseFloat(valB.replace(/[^0-9,-]/g, '').replace(',', '.')) || 0;
+          return newDirection === 'asc' ? (numA - numB) : (numB - numA);
+        } else {
+          valA = valA.toLowerCase();
+          valB = valB.toLowerCase();
+          if (valA < valB) return newDirection === 'asc' ? -1 : 1;
+          if (valA > valB) return newDirection === 'asc' ? 1 : -1;
+          return 0;
+        }
+      });
+
+      // Render ulang urutan baris ke tbody & update nomor urut ranking 1..N
+      rows.forEach((row, idx) => {
+        const noCell = row.children[0];
+        if (noCell) noCell.textContent = idx + 1;
+        tbody.appendChild(row);
+      });
+    });
+  });
+}
 </script>
 
 <?php include __DIR__ . '/footer.php'; ?>

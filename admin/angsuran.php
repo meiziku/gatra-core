@@ -14,12 +14,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $angsuran_ke = (int)$_POST['angsuran_ke'];
 
     // Bersihkan format nominal rupiah jika mengandung Rp atau titik ribuan
+    $rawPokok = str_replace(['Rp', '.', ' '], '', $_POST['angsuran_pokok'] ?? '0');
+    $rawPokok = str_replace(',', '.', $rawPokok);
+    $angsuran_pokok = (float)$rawPokok;
+
+    $rawBunga = str_replace(['Rp', '.', ' '], '', $_POST['angsuran_bunga'] ?? '0');
+    $rawBunga = str_replace(',', '.', $rawBunga);
+    $angsuran_bunga = (float)$rawBunga;
+
     $rawBayar = str_replace(['Rp', '.', ' '], '', $_POST['jumlah_bayar'] ?? '0');
     $rawBayar = str_replace(',', '.', $rawBayar);
     $jumlah_bayar = (float)$rawBayar;
 
-    $angsuran_pokok = (float)$_POST['angsuran_pokok'];
-    $angsuran_bunga = (float)$_POST['angsuran_bunga'];
+    // Jika jumlah_bayar belum terisi, otomatis jumlahkan pokok + bunga
+    if ($jumlah_bayar <= 0) {
+        $jumlah_bayar = $angsuran_pokok + $angsuran_bunga;
+    }
+
     $denda = 0; // Denda ditiadakan sesuai instruksi
     $tanggal_bayar = parse_dmy_to_ymd($_POST['tanggal_bayar'] ?? '');
     $keterangan = trim($_POST['keterangan'] ?? '');
@@ -231,26 +242,50 @@ require_once __DIR__ . '/header.php';
           </div>
 
           <input type="hidden" name="angsuran_ke" value="<?= $nextAngsuran ?>">
-          <input type="hidden" name="angsuran_pokok" value="<?= $selectedPinjaman['angsuran_pokok'] ?>">
-          <input type="hidden" name="angsuran_bunga" value="<?= $selectedPinjaman['angsuran_bunga'] ?>">
 
           <div class="form-group">
             <label class="form-label">Angsuran Ke-</label>
             <input type="text" class="form-control" value="Bulan ke-<?= $nextAngsuran ?> dari <?= $selectedPinjaman['lama_bulan'] ?> bulan" readonly style="background-color: #f8fafc; font-weight:700;">
           </div>
 
-          <!-- Jumlah Pembayaran dengan Rp dan Titik Pemisah Ribuan Otomatis -->
+          <!-- Pemisahan Input Angsuran Pokok & Bunga -->
+          <div class="form-row">
+            <div class="form-col form-group">
+              <label class="form-label">Angsuran Pokok (Rp) *</label>
+              <input type="text" 
+                     name="angsuran_pokok" 
+                     id="input_angsuran_pokok" 
+                     class="form-control" 
+                     value="Rp <?= number_format($selectedPinjaman['angsuran_pokok'], 0, ',', '.') ?>" 
+                     oninput="hitungTotalAngsuran(this)" 
+                     style="font-weight: 700; color: var(--secondary);" 
+                     required>
+            </div>
+            <div class="form-col form-group">
+              <label class="form-label">Angsuran Bunga (Rp) *</label>
+              <input type="text" 
+                     name="angsuran_bunga" 
+                     id="input_angsuran_bunga" 
+                     class="form-control" 
+                     value="Rp <?= number_format($selectedPinjaman['angsuran_bunga'], 0, ',', '.') ?>" 
+                     oninput="hitungTotalAngsuran(this)" 
+                     style="font-weight: 700; color: var(--secondary);" 
+                     required>
+            </div>
+          </div>
+
+          <!-- Total Pembayaran dengan Kalkulasi Otomatis -->
           <div class="form-group">
-            <label class="form-label">Jumlah Pembayaran (Rp) *</label>
+            <label class="form-label">Total Pembayaran (Rp) *</label>
             <input type="text" 
                    name="jumlah_bayar" 
                    id="input_jumlah_bayar" 
                    class="form-control" 
                    value="Rp <?= $formattedNominal ?>" 
-                   oninput="formatRupiahInput(this)" 
-                   style="font-weight: 700; color: var(--secondary);" 
+                   readonly 
+                   style="font-weight: 800; font-size: 1.05rem; color: var(--primary-dark); background-color: #ecfdf5; border-color: #a7f3d0;" 
                    required>
-            <div class="form-text">Pokok: <?= rupiah($selectedPinjaman['angsuran_pokok']) ?> + Bunga: <?= rupiah($selectedPinjaman['angsuran_bunga']) ?></div>
+            <small style="color: var(--text-muted); font-size: 0.78rem;">Otomatis dihitung dari Angsuran Pokok + Bunga</small>
           </div>
 
           <div class="form-group">
@@ -345,7 +380,7 @@ require_once __DIR__ . '/header.php';
                   <?php endif; ?>
                 </td>
                 <td style="text-align: center;">
-                  <button type="button" class="btn btn-outline btn-sm" style="color: var(--danger); border-color: #fee2e2; padding: 4px 8px;" onclick="konfirmasiHapusAngsuran(<?= $a['id'] ?>, '<?= htmlspecialchars(addslashes($a['no_pinjaman'])) ?>', <?= $a['angsuran_ke'] ?>, '<?= rupiah($a['jumlah_bayar']) ?>')" title="Hapus Angsuran">
+                  <button type="button" class="btn btn-outline btn-sm" style="color: var(--danger); border-color: #fee2e2; padding: 4px 8px;" onclick="openHapusAngsuran(<?= $a['id'] ?>, '<?= htmlspecialchars(addslashes($a['no_pinjaman'])) ?>', <?= $a['angsuran_ke'] ?>, '<?= rupiah($a['jumlah_bayar']) ?>')" title="Hapus Angsuran">
                     <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                   </button>
                 </td>
@@ -358,11 +393,39 @@ require_once __DIR__ . '/header.php';
   </div>
 </div>
 
-<!-- Form Hapus Angsuran Tersembunyi -->
-<form id="formHapusAngsuran" method="POST" action="angsuran.php" style="display:none;">
-  <input type="hidden" name="action" value="hapus_angsuran">
-  <input type="hidden" name="angsuran_id" id="hapus_angsuran_id">
-</form>
+<!-- Modal Konfirmasi Hapus Angsuran (Rapi & Modern) -->
+<div class="modal-overlay" id="modalHapusAngsuran">
+  <div class="modal-card" style="max-width: 460px;">
+    <div class="modal-header">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span style="display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 50%; background: #fee2e2; color: var(--danger);">
+          <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+        </span>
+        <h3 style="margin: 0; color: var(--danger); font-size: 1.1rem;">Hapus Pembayaran Angsuran</h3>
+      </div>
+      <button type="button" class="modal-close-btn" onclick="closeModal('modalHapusAngsuran')">&times;</button>
+    </div>
+    <form method="POST" action="angsuran.php">
+      <input type="hidden" name="action" value="hapus_angsuran">
+      <input type="hidden" name="angsuran_id" id="hapus_angsuran_id">
+      <div class="modal-body">
+        <p style="font-size: 0.95rem; color: var(--secondary); margin-bottom: 12px; line-height: 1.5;">
+          Yakin ingin menghapus pembayaran angsuran ke-<strong id="hapus_angsuran_ke"></strong> sebesar <strong id="hapus_angsuran_nominal" style="color: var(--danger);"></strong> untuk pinjaman <strong id="hapus_angsuran_pinjaman"></strong>?
+        </p>
+        <div style="background-color: #fff7ed; border: 1px solid #ffedd5; border-radius: var(--radius-sm); padding: 12px; font-size: 0.82rem; color: #9a3412; line-height: 1.5;">
+          ℹ️ Saldo sisa kewajiban pinjaman anggota akan otomatis dikembalikan / disesuaikan.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('modalHapusAngsuran')">Batal</button>
+        <button type="submit" class="btn btn-danger">
+          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+          Ya, Hapus Angsuran
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
 
 <script>
 // Format Otomatis Input Rupiah dengan Rp dan Titik Pemisah Ribuan
@@ -382,6 +445,35 @@ function formatRupiahInput(input) {
     rupiah += separator + ribuan.join('.');
   }
   input.value = 'Rp ' + rupiah;
+}
+
+// Hitung Otomatis Total Pembayaran Angsuran = Pokok + Bunga
+function hitungTotalAngsuran(el) {
+  if (el) formatRupiahInput(el);
+
+  const parseVal = (id) => {
+    const input = document.getElementById(id);
+    if (!input) return 0;
+    const clean = input.value.replace(/[^0-9]/g, '');
+    return clean ? parseInt(clean, 10) : 0;
+  };
+
+  const pokok = parseVal('input_angsuran_pokok');
+  const bunga = parseVal('input_angsuran_bunga');
+  const total = pokok + bunga;
+
+  const totalInput = document.getElementById('input_jumlah_bayar');
+  if (totalInput) {
+    let s = total.toString();
+    let sisa = s.length % 3;
+    let r = s.substr(0, sisa);
+    let ribuan = s.substr(sisa).match(/\d{3}/g);
+    if (ribuan) {
+      let sep = sisa ? '.' : '';
+      r += sep + ribuan.join('.');
+    }
+    totalInput.value = 'Rp ' + r;
+  }
 }
 
 // Interaktivitas Dropdown Pinjaman Berjalan dengan Fitur Pencarian Realtime
@@ -467,11 +559,13 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 });
 
-function konfirmasiHapusAngsuran(id, noPinj, angsKe, nominal) {
-  if (confirm('Yakin ingin menghapus pembayaran angsuran ke-' + angsKe + ' sebesar ' + nominal + ' untuk pinjaman ' + noPinj + '? Saldo kewajiban pinjaman akan dikembalikan.')) {
-    document.getElementById('hapus_angsuran_id').value = id;
-    document.getElementById('formHapusAngsuran').submit();
-  }
+// Buka Modal Hapus Angsuran Modern
+function openHapusAngsuran(id, noPinj, angsKe, nominal) {
+  document.getElementById('hapus_angsuran_id').value = id;
+  document.getElementById('hapus_angsuran_pinjaman').textContent = noPinj;
+  document.getElementById('hapus_angsuran_ke').textContent = angsKe;
+  document.getElementById('hapus_angsuran_nominal').textContent = nominal;
+  openModal('modalHapusAngsuran');
 }
 </script>
 

@@ -18,7 +18,7 @@ if (!ob_get_level()) {
 define('DB_HOST', 'localhost');
 define('DB_USER', 'root');
 define('DB_PASS', '');
-define('DB_NAME', 'koperasi_gatra');
+define('DB_NAME', 'gatra_core');
 
 // Driver mode: 'auto' (coba MySQL dulu, jika gagal/belum di-setup otomatis pakai SQLite)
 // Atau bisa diset 'mysql' atau 'sqlite'
