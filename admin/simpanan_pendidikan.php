@@ -231,8 +231,26 @@ include 'header.php';
   </div>
 </div>
 
-<!-- Stat Cards -->
-<div class="stat-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); margin-bottom: 24px;">
+<!-- Stat Cards (1 Baris ke Samping) -->
+<style>
+.stats-grid-sp {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+@media (max-width: 1024px) {
+  .stats-grid-sp {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 576px) {
+  .stats-grid-sp {
+    grid-template-columns: 1fr;
+  }
+}
+</style>
+<div class="stats-grid stats-grid-sp">
   <div class="stat-card">
     <div>
       <div class="stat-title">Peserta Aktif</div>

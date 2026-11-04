@@ -11,7 +11,7 @@ require_once __DIR__ . '/../config/helper.php';
 require_admin();
 
 $tab = $_GET['tab'] ?? 'koperasi';
-if (!in_array($tab, ['koperasi', 'shu', 'neraca', 'labarugi'])) {
+if (!in_array($tab, ['koperasi', 'shu', 'neraca', 'labarugi', 'backup'])) {
     $tab = 'koperasi';
 }
 
@@ -338,6 +338,213 @@ $rawLr = get_setting('akun_labarugi');
 $lr = $rawLr ? json_decode($rawLr, true) : $defaultLr;
 if (!is_array($lr) || empty($lr)) $lr = $defaultLr;
 
+// =========================================================================
+// 5. HANDLE BACKUP DATA (DOWNLOAD JSON)
+// =========================================================================
+if (isset($_GET['action']) && $_GET['action'] === 'download_backup') {
+    $tablesOrder = [
+        'users',
+        'anggota',
+        'pengaturan',
+        'buku_kas',
+        'kas_transaksi',
+        'pinjaman',
+        'angsuran',
+        'simpanan',
+        'simpanan_pendidikan',
+        'simpanan_pendidikan_setoran'
+    ];
+
+    $currentUser = current_user();
+    $backup = [
+        'app' => 'Koperasi Gatra Core',
+        'version' => '1.0',
+        'exported_at' => date('Y-m-d H:i:s'),
+        'exported_by' => $currentUser['nama_lengkap'] ?? 'Administrator',
+        'tables' => []
+    ];
+
+    foreach ($tablesOrder as $table) {
+        try {
+            $stmt = $db->query("SELECT * FROM $table");
+            $backup['tables'][$table] = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (Exception $e) {
+            $backup['tables'][$table] = [];
+        }
+    }
+
+    $filename = 'backup_gatra_koperasi_' . date('Y-m-d_His') . '.json';
+    if (ob_get_level()) {
+        ob_end_clean();
+    }
+    header('Content-Type: application/json; charset=utf-8');
+    header('Content-Disposition: attachment; filename="' . $filename . '"');
+    echo json_encode($backup, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+// =========================================================================
+// 6. HANDLE RESTORE DATA (UPLOAD JSON)
+// =========================================================================
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'restore_backup') {
+    if (!isset($_FILES['backup_file']) || $_FILES['backup_file']['error'] !== UPLOAD_ERR_OK) {
+        set_flash('error', 'Silakan pilih file cadangan (.json) yang valid untuk diunggah.');
+        redirect('pengaturan.php?tab=backup');
+    }
+
+    $tmpPath = $_FILES['backup_file']['tmp_name'];
+    $rawContent = file_get_contents($tmpPath);
+    $backupData = json_decode($rawContent, true);
+
+    if (!is_array($backupData) || !isset($backupData['tables']) || !is_array($backupData['tables'])) {
+        set_flash('error', 'Format file cadangan tidak valid atau rusak (struktur data JSON tidak sesuai).');
+        redirect('pengaturan.php?tab=backup');
+    }
+
+    $driver = $db->getAttribute(PDO::ATTR_DRIVER_NAME);
+
+    // Urutan penghapusan tabel (anak terlebih dahulu)
+    $deleteOrder = [
+        'simpanan_pendidikan_setoran',
+        'simpanan_pendidikan',
+        'angsuran',
+        'pinjaman',
+        'simpanan',
+        'kas_transaksi',
+        'buku_kas',
+        'pengaturan',
+        'anggota',
+        'users'
+    ];
+
+    // Urutan pemasukan data (induk terlebih dahulu)
+    $insertOrder = [
+        'users',
+        'anggota',
+        'pengaturan',
+        'buku_kas',
+        'kas_transaksi',
+        'pinjaman',
+        'angsuran',
+        'simpanan',
+        'simpanan_pendidikan',
+        'simpanan_pendidikan_setoran'
+    ];
+
+    try {
+        $db->beginTransaction();
+
+        // Nonaktifkan pemeriksaan foreign key sementara
+        if ($driver === 'sqlite') {
+            $db->exec("PRAGMA foreign_keys = OFF;");
+        } else {
+            $db->exec("SET FOREIGN_KEY_CHECKS = 0;");
+        }
+
+        // Hapus data yang ada saat ini
+        foreach ($deleteOrder as $table) {
+            try {
+                $db->exec("DELETE FROM $table");
+            } catch (Exception $e) {}
+        }
+
+        // Masukkan data dari file cadangan
+        $restoredCounts = [];
+        foreach ($insertOrder as $table) {
+            if (!isset($backupData['tables'][$table]) || !is_array($backupData['tables'][$table])) {
+                continue;
+            }
+
+            $rows = $backupData['tables'][$table];
+            $count = count($rows);
+            $restoredCounts[$table] = $count;
+
+            if ($count === 0) continue;
+
+            $cols = array_keys($rows[0]);
+            if ($driver === 'sqlite') {
+                $colNames = implode(', ', array_map(function($c) { return '"' . str_replace('"', '""', $c) . '"'; }, $cols));
+            } else {
+                $colNames = implode(', ', array_map(function($c) { return '`' . str_replace('`', '``', $c) . '`'; }, $cols));
+            }
+            $placeholders = implode(', ', array_fill(0, count($cols), '?'));
+
+            $stmt = $db->prepare("INSERT INTO $table ($colNames) VALUES ($placeholders)");
+            foreach ($rows as $row) {
+                $stmt->execute(array_values($row));
+            }
+
+            // Sesuaikan sequence untuk SQLite
+            if ($driver === 'sqlite') {
+                try {
+                    $maxId = (int)$db->query("SELECT MAX(id) FROM $table")->fetchColumn();
+                    if ($maxId > 0) {
+                        $db->prepare("REPLACE INTO sqlite_sequence (name, seq) VALUES (?, ?)")->execute([$table, $maxId]);
+                    }
+                } catch (Exception $e) {}
+            }
+        }
+
+        // Pastikan minimal akun admin tetap ada jika users kosong
+        $adminCount = (int)$db->query("SELECT COUNT(*) FROM users WHERE role = 'admin'")->fetchColumn();
+        if ($adminCount === 0) {
+            $defaultPass = password_hash('admin123', PASSWORD_DEFAULT);
+            $db->prepare("INSERT INTO users (username, password, role, nama_lengkap) VALUES ('admin', ?, 'admin', 'Administrator Koperasi')")->execute([$defaultPass]);
+        }
+
+        // Aktifkan kembali foreign key
+        if ($driver === 'sqlite') {
+            $db->exec("PRAGMA foreign_keys = ON;");
+        } else {
+            $db->exec("SET FOREIGN_KEY_CHECKS = 1;");
+        }
+
+        $db->commit();
+
+        $totalRestored = array_sum($restoredCounts);
+        set_flash('success', "Proses Restore berhasil! Total <strong>{$totalRestored}</strong> baris data dari " . count($restoredCounts) . " tabel berhasil dipulihkan.");
+    } catch (Exception $e) {
+        if ($db->inTransaction()) {
+            $db->rollBack();
+        }
+        try {
+            if ($driver === 'sqlite') {
+                $db->exec("PRAGMA foreign_keys = ON;");
+            } else {
+                $db->exec("SET FOREIGN_KEY_CHECKS = 1;");
+            }
+        } catch (Exception $ex) {}
+
+        set_flash('error', 'Gagal memulihkan data: ' . $e->getMessage());
+    }
+
+    redirect('pengaturan.php?tab=backup');
+}
+
+// Statistik Data untuk Tab Backup
+$tableStats = [
+    'users'                       => ['label' => 'Akun Pengguna & Admin', 'icon' => '👤', 'count' => 0],
+    'anggota'                     => ['label' => 'Data Anggota Koperasi', 'icon' => '👥', 'count' => 0],
+    'simpanan'                    => ['label' => 'Transaksi Simpanan (Pokok, Wajib, Sukarela)', 'icon' => '💰', 'count' => 0],
+    'pinjaman'                    => ['label' => 'Data Pinjaman Anggota', 'icon' => '📋', 'count' => 0],
+    'angsuran'                    => ['label' => 'Riwayat Pembayaran Angsuran', 'icon' => '💳', 'count' => 0],
+    'buku_kas'                    => ['label' => 'Buku Kas (Umum, Bank, Toko & Mutasi)', 'icon' => '📖', 'count' => 0],
+    'kas_transaksi'               => ['label' => 'Kas SP Transaksi Operasional', 'icon' => '🏷️', 'count' => 0],
+    'simpanan_pendidikan'         => ['label' => 'Rekening Simpanan Pendidikan', 'icon' => '🎓', 'count' => 0],
+    'simpanan_pendidikan_setoran' => ['label' => 'Setoran Simpanan Pendidikan', 'icon' => '📥', 'count' => 0],
+    'pengaturan'                  => ['label' => 'Konfigurasi Sistem, SHU & Rekening', 'icon' => '⚙️', 'count' => 0],
+];
+if ($tab === 'backup') {
+    foreach ($tableStats as $tbl => &$info) {
+        try {
+            $info['count'] = (int)$db->query("SELECT COUNT(*) FROM $tbl")->fetchColumn();
+        } catch (Exception $e) {
+            $info['count'] = 0;
+        }
+    }
+    unset($info);
+}
+
 $pageTitle = 'Pengaturan Koperasi';
 $pageSubtitle = 'Kelola data identitas, pembagian SHU, neraca saldo awal, serta rekening laba/rugi';
 $activePage = 'pengaturan';
@@ -373,6 +580,12 @@ require_once __DIR__ . '/header.php';
       <a href="pengaturan.php?tab=labarugi" class="btn <?= $tab === 'labarugi' ? 'btn-primary' : 'btn-secondary' ?>" style="padding: 9px 18px; font-weight: 600;">
         <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
         Laba / Rugi
+      </a>
+
+      <!-- Tab 5: Backup & Restore -->
+      <a href="pengaturan.php?tab=backup" class="btn <?= $tab === 'backup' ? 'btn-primary' : 'btn-secondary' ?>" style="padding: 9px 18px; font-weight: 600;">
+        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/></svg>
+        Backup & Restore
       </a>
     </div>
 
@@ -1602,6 +1815,218 @@ require_once __DIR__ . '/header.php';
         });
       }
     }
+  }
+  </script>
+
+<?php elseif ($tab === 'backup'): ?>
+  <!-- =========================================================================
+       TAB 5: BACKUP & RESTORE DATA MANUAL
+       ========================================================================= -->
+  <style>
+  .backup-restore-grid {
+    display: grid;
+    grid-template-columns: 1.1fr 0.9fr;
+    gap: 24px;
+    align-items: flex-start;
+  }
+  @media (max-width: 992px) {
+    .backup-restore-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+  </style>
+
+  <div class="backup-restore-grid">
+    
+    <!-- CARD 1: BACKUP / UNDUH CADANGAN DATA -->
+    <div class="card" style="margin-bottom: 0;">
+      <div class="card-header" style="background: linear-gradient(to right, #f0fdf4, #ffffff);">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 50%; background: #dcfce7; color: var(--primary);">
+            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+          </span>
+          <div>
+            <h3 style="margin: 0; font-size: 1.1rem; color: var(--secondary);">Cadangkan Data (Backup Manual)</h3>
+            <small style="color: var(--text-muted);">Unduh seluruh database transaksi koperasi ke file arsip</small>
+          </div>
+        </div>
+      </div>
+      <div class="card-body">
+        <p style="font-size: 0.88rem; color: var(--secondary); line-height: 1.6; margin-bottom: 16px;">
+          Fitur ini mengekspor seluruh data yang telah Anda inputkan ke dalam sebuah file cadangan berformat <strong>.JSON</strong>. Data ini mencakup rekening anggota, buku kas umum/bank/toko, pinjaman, angsuran, simpanan, simpanan pendidikan, hingga konfigurasi SHU dan Neraca.
+        </p>
+
+        <div style="background: #f8fafc; border: 1.5px solid var(--border-color); border-radius: var(--radius-sm); padding: 14px 16px; margin-bottom: 20px;">
+          <div style="font-size: 0.85rem; font-weight: 700; color: var(--secondary); margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+            <span>Ringkasan Data Tersimpan Saat Ini</span>
+            <span class="badge badge-success" style="font-size: 0.75rem;">Aktif & Siap Diunduh</span>
+          </div>
+          <table style="width: 100%; font-size: 0.82rem; border-collapse: collapse;">
+            <tbody>
+              <?php 
+                $totalSemuaBaris = 0;
+                foreach ($tableStats as $tblKey => $tbl): 
+                  $totalSemuaBaris += $tbl['count'];
+              ?>
+                <tr style="border-bottom: 1px solid #edf2f7;">
+                  <td style="padding: 6px 0; color: var(--secondary);">
+                    <span style="margin-right: 6px;"><?= $tbl['icon'] ?></span>
+                    <?= htmlspecialchars($tbl['label']) ?>
+                  </td>
+                  <td style="padding: 6px 0; text-align: right; font-weight: 700; color: var(--primary);">
+                    <?= number_format($tbl['count'], 0, ',', '.') ?> baris
+                  </td>
+                </tr>
+              <?php endforeach; ?>
+              <tr style="font-weight: 800; background: #f1f5f9;">
+                <td style="padding: 8px 6px; color: var(--secondary);">TOTAL SELURUH DATA</td>
+                <td style="padding: 8px 6px; text-align: right; color: var(--primary); font-size: 0.9rem;">
+                  <?= number_format($totalSemuaBaris, 0, ',', '.') ?> baris
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <a href="pengaturan.php?action=download_backup" class="btn btn-primary" style="padding: 12px 20px; font-size: 0.95rem; font-weight: 700; justify-content: center; width: 100%;">
+            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            Download Cadangan Data Sekarang (.json)
+          </a>
+          <small style="color: var(--text-muted); text-align: center; font-size: 0.78rem;">
+            Tip: Disarankan mengunduh cadangan secara berkala (misal: mingguan atau bulanan) sebagai antisipasi keselamatan data.
+          </small>
+        </div>
+      </div>
+    </div>
+
+    <!-- CARD 2: RESTORE / PULIHKAN DATA CADANGAN -->
+    <div class="card" style="margin-bottom: 0;">
+      <div class="card-header" style="background: linear-gradient(to right, #fef2f2, #ffffff);">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 50%; background: #fee2e2; color: var(--danger);">
+            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+          </span>
+          <div>
+            <h3 style="margin: 0; font-size: 1.1rem; color: var(--danger);">Pulihkan Data (Restore Manual)</h3>
+            <small style="color: var(--text-muted);">Kembalikan seluruh data dari file cadangan .json yang pernah diunduh</small>
+          </div>
+        </div>
+      </div>
+      <div class="card-body">
+        <!-- Kotak Peringatan Danger -->
+        <div style="background-color: #fef2f2; border: 1.5px solid #fecaca; border-radius: var(--radius-sm); padding: 14px 16px; margin-bottom: 18px; color: #991b1b; font-size: 0.85rem; line-height: 1.5;">
+          <div style="display: flex; align-items: flex-start; gap: 10px;">
+            <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="flex-shrink: 0; margin-top: 1px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+            <div>
+              <strong>PERHATIAN PENTING:</strong>
+              <div style="margin-top: 4px;">Proses Restore akan <strong>menimpa dan mengganti seluruh data yang saat ini tersimpan</strong> di sistem dengan isi file cadangan yang diunggah. Tindakan ini tidak dapat dibatalkan.</div>
+            </div>
+          </div>
+        </div>
+
+        <form method="POST" action="pengaturan.php?tab=backup" enctype="multipart/form-data" id="formRestoreBackup">
+          <input type="hidden" name="action" value="restore_backup">
+
+          <div class="form-group">
+            <label class="form-label" style="font-weight: 700;">Pilih File Cadangan (.json) *</label>
+            <div style="border: 2px dashed #cbd5e1; border-radius: var(--radius-sm); padding: 20px; text-align: center; background: #f8fafc; cursor: pointer;" onclick="document.getElementById('inputBackupFile').click();">
+              <svg width="32" height="32" fill="none" stroke="#64748b" viewBox="0 0 24 24" style="margin: 0 auto 8px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+              <div style="font-size: 0.9rem; font-weight: 600; color: var(--secondary);" id="labelFileName">Klik untuk memilih file cadangan JSON</div>
+              <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 4px;">Hanya mendukung file .json yang diekspor dari sistem Koperasi Gatra Core</div>
+            </div>
+            <input type="file" id="inputBackupFile" name="backup_file" accept=".json,application/json" required style="display: none;" onchange="handleFileSelect(this)">
+          </div>
+
+          <div class="form-group" style="margin-top: 16px;">
+            <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer; user-select: none;">
+              <input type="checkbox" id="chkKonfirmasiRestore" required style="width: 18px; height: 18px; margin-top: 2px; accent-color: var(--danger);">
+              <span style="font-size: 0.85rem; color: var(--secondary); line-height: 1.4;">
+                Saya memahami konsekuensinya dan menyatakan setuju untuk menimpa data yang sedang aktif dengan data dari file cadangan yang dipilih.
+              </span>
+            </label>
+          </div>
+
+          <div style="margin-top: 20px;">
+            <button type="submit" id="btnSubmitRestore" class="btn btn-danger" style="padding: 12px 20px; font-size: 0.95rem; font-weight: 700; justify-content: center; width: 100%;" disabled>
+              <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+              Mulai Pulihkan (Restore) Data
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Modal Konfirmasi Restore -->
+  <div class="modal-overlay" id="modalKonfirmasiRestore">
+    <div class="modal-card" style="max-width: 480px;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 50%; background: #fee2e2; color: var(--danger);">
+            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+          </span>
+          <h3 style="margin: 0; color: var(--danger); font-size: 1.1rem;">Konfirmasi Akhir Restore Data</h3>
+        </div>
+        <button type="button" class="modal-close-btn" onclick="closeModal('modalKonfirmasiRestore')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 0.95rem; color: var(--secondary); margin-bottom: 12px; line-height: 1.5;">
+          Apakah Anda benar-benar yakin ingin memulihkan database dari file: <strong id="modalRestoreFileName" style="color: var(--primary);">-</strong>?
+        </p>
+        <div style="background-color: #fff7ed; border: 1px solid #ffedd5; border-radius: var(--radius-sm); padding: 12px; font-size: 0.82rem; color: #9a3412; line-height: 1.5;">
+          ⚠️ Semua data anggota, transaksi kas, simpanan, dan pinjaman yang telah dibuat sejak cadangan ini dibuat akan tertimpa dan tidak dapat dipulihkan kembali.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('modalKonfirmasiRestore')">Batal</button>
+        <button type="button" class="btn btn-danger" onclick="executeRestore()">
+          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+          Ya, Timpa & Pulihkan Sekarang
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  function handleFileSelect(input) {
+    const lbl = document.getElementById('labelFileName');
+    const chk = document.getElementById('chkKonfirmasiRestore');
+    const btn = document.getElementById('btnSubmitRestore');
+    if (input.files && input.files[0]) {
+      const file = input.files[0];
+      lbl.innerHTML = `<strong style="color: var(--primary);">${file.name}</strong> (${(file.size / 1024).toFixed(1)} KB)`;
+      btn.disabled = !chk.checked;
+    } else {
+      lbl.textContent = 'Klik untuk memilih file cadangan JSON';
+      btn.disabled = true;
+    }
+  }
+
+  document.getElementById('chkKonfirmasiRestore')?.addEventListener('change', function() {
+    const fileInput = document.getElementById('inputBackupFile');
+    const hasFile = fileInput && fileInput.files && fileInput.files.length > 0;
+    document.getElementById('btnSubmitRestore').disabled = !(this.checked && hasFile);
+  });
+
+  document.getElementById('formRestoreBackup')?.addEventListener('submit', function(e) {
+    e.preventDefault();
+    const fileInput = document.getElementById('inputBackupFile');
+    if (!fileInput || !fileInput.files || !fileInput.files[0]) {
+      alert('Silakan pilih file cadangan .json terlebih dahulu.');
+      return;
+    }
+    document.getElementById('modalRestoreFileName').textContent = fileInput.files[0].name;
+    openModal('modalKonfirmasiRestore');
+  });
+
+  function executeRestore() {
+    closeModal('modalKonfirmasiRestore');
+    const btn = document.getElementById('btnSubmitRestore');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="loading-spinner"></span> Sedang Memulihkan Database... Mohon Tunggu...';
+    document.getElementById('formRestoreBackup').submit();
   }
   </script>
 <?php endif; ?>

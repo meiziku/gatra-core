@@ -721,6 +721,8 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
 $pageSelf = 'laporan.php';
 $csvUrl = "laporan.php?tab=" . urlencode($tab) . "&tgl_mulai=" . urlencode($tglMulai) . "&tgl_selesai=" . urlencode($tglSelesai) . "&export=csv";
 
+$activePage = 'laporan';
+$activeTab = $tab;
 include __DIR__ . '/header.php';
 ?>
 
@@ -757,36 +759,6 @@ include __DIR__ . '/header.php';
   <p style="font-size: 0.85rem; color: #334155;">
     Periode Pembukuan: <strong><?= tgl_dmy($tglMulai) ?></strong> s/d <strong><?= tgl_dmy($tglSelesai) ?></strong> &bull; Tahun Buku <strong><?= $tahunBuku ?></strong> &bull; Dicetak: <?= tgl_indo(date('Y-m-d'), true) ?>
   </p>
-</div>
-
-<!-- Navigation Tabs 6 Laporan (No-Print) -->
-<div class="card no-print" style="margin-bottom: 20px;">
-  <div class="card-body" style="padding: 12px 18px; display: flex; align-items: center; justify-content: flex-start; flex-wrap: wrap; gap: 8px;">
-    <a href="laporan.php?tab=simpanan_wajib&tgl_mulai=<?= urlencode($tglMulai) ?>&tgl_selesai=<?= urlencode($tglSelesai) ?>" 
-       class="btn <?= $tab === 'simpanan_wajib' ? 'btn-primary' : 'btn-secondary' ?> btn-sm" style="font-size: 0.84rem; font-weight: 600;">
-      📑 Simpanan Wajib
-    </a>
-    <a href="laporan.php?tab=simpanan_manasuka&tgl_mulai=<?= urlencode($tglMulai) ?>&tgl_selesai=<?= urlencode($tglSelesai) ?>" 
-       class="btn <?= $tab === 'simpanan_manasuka' ? 'btn-primary' : 'btn-secondary' ?> btn-sm" style="font-size: 0.84rem; font-weight: 600;">
-      📑 Simpanan Manasuka
-    </a>
-    <a href="laporan.php?tab=laporan_hasil_usaha&tgl_mulai=<?= urlencode($tglMulai) ?>&tgl_selesai=<?= urlencode($tglSelesai) ?>" 
-       class="btn <?= $tab === 'laporan_hasil_usaha' ? 'btn-primary' : 'btn-secondary' ?> btn-sm" style="font-size: 0.84rem; font-weight: 600;">
-      📈 Laporan Hasil Usaha
-    </a>
-    <a href="laporan.php?tab=neraca&tgl_mulai=<?= urlencode($tglMulai) ?>&tgl_selesai=<?= urlencode($tglSelesai) ?>" 
-       class="btn <?= $tab === 'neraca' ? 'btn-primary' : 'btn-secondary' ?> btn-sm" style="font-size: 0.84rem; font-weight: 600;">
-      ⚖️ Neraca
-    </a>
-    <a href="laporan.php?tab=rekap_shu&tgl_mulai=<?= urlencode($tglMulai) ?>&tgl_selesai=<?= urlencode($tglSelesai) ?>" 
-       class="btn <?= $tab === 'rekap_shu' ? 'btn-primary' : 'btn-secondary' ?> btn-sm" style="font-size: 0.84rem; font-weight: 600;">
-      📊 Rekap SHU
-    </a>
-    <a href="laporan.php?tab=pembagian_shu&tgl_mulai=<?= urlencode($tglMulai) ?>&tgl_selesai=<?= urlencode($tglSelesai) ?>" 
-       class="btn <?= $tab === 'pembagian_shu' ? 'btn-primary' : 'btn-secondary' ?> btn-sm" style="font-size: 0.84rem; font-weight: 600;">
-      🍰 Pembagian SHU
-    </a>
-  </div>
 </div>
 
 <!-- Card Filter Parameter Periode (No-Print) -->

@@ -63,7 +63,79 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     redirect('angsuran.php');
 }
 
-// 2. Handle Hapus Pembayaran Angsuran
+// 2. Handle Edit Pembayaran Angsuran
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'edit_angsuran') {
+    $angsuran_id = (int)($_POST['angsuran_id'] ?? 0);
+    $angsuran_ke = (int)($_POST['angsuran_ke'] ?? 1);
+
+    $rawPokok = str_replace(['Rp', '.', ' '], '', $_POST['angsuran_pokok'] ?? '0');
+    $rawPokok = str_replace(',', '.', $rawPokok);
+    $angsuran_pokok = (float)$rawPokok;
+
+    $rawBunga = str_replace(['Rp', '.', ' '], '', $_POST['angsuran_bunga'] ?? '0');
+    $rawBunga = str_replace(',', '.', $rawBunga);
+    $angsuran_bunga = (float)$rawBunga;
+
+    $rawBayar = str_replace(['Rp', '.', ' '], '', $_POST['jumlah_bayar'] ?? '0');
+    $rawBayar = str_replace(',', '.', $rawBayar);
+    $jumlah_bayar = (float)$rawBayar;
+    if ($jumlah_bayar <= 0) {
+        $jumlah_bayar = $angsuran_pokok + $angsuran_bunga;
+    }
+
+    $tanggal_bayar = parse_dmy_to_ymd($_POST['tanggal_bayar'] ?? '');
+    $keterangan = trim($_POST['keterangan'] ?? '');
+
+    if ($angsuran_id > 0 && $jumlah_bayar > 0) {
+        $stmtCek = $db->prepare("SELECT pinjaman_id FROM angsuran WHERE id = ?");
+        $stmtCek->execute([$angsuran_id]);
+        $pinjId = $stmtCek->fetchColumn();
+
+        $stmt = $db->prepare("UPDATE angsuran SET 
+            angsuran_ke = ?, 
+            jumlah_bayar = ?, 
+            angsuran_pokok = ?, 
+            angsuran_bunga = ?, 
+            tanggal_bayar = ?, 
+            keterangan = ? 
+            WHERE id = ?");
+        $stmt->execute([
+            $angsuran_ke,
+            $jumlah_bayar,
+            $angsuran_pokok,
+            $angsuran_bunga,
+            $tanggal_bayar,
+            $keterangan,
+            $angsuran_id
+        ]);
+
+        // Cek status lunas / berjalan pinjaman
+        if ($pinjId) {
+            $stmtCheck = $db->prepare("
+                SELECT p.total_harus_dibayar, COALESCE(SUM(a.jumlah_bayar), 0) as total_dibayar
+                FROM pinjaman p
+                LEFT JOIN angsuran a ON p.id = a.pinjaman_id
+                WHERE p.id = ?
+                GROUP BY p.id
+            ");
+            $stmtCheck->execute([$pinjId]);
+            $checkData = $stmtCheck->fetch();
+
+            if ($checkData && $checkData['total_dibayar'] >= $checkData['total_harus_dibayar']) {
+                $db->prepare("UPDATE pinjaman SET status = 'lunas' WHERE id = ?")->execute([$pinjId]);
+            } else {
+                $db->prepare("UPDATE pinjaman SET status = 'berjalan' WHERE id = ?")->execute([$pinjId]);
+            }
+        }
+
+        set_flash('success', "Data pembayaran angsuran ke-$angsuran_ke berhasil diperbarui.");
+    } else {
+        set_flash('error', 'Data angsuran tidak valid atau nominal belum diisi.');
+    }
+    redirect('angsuran.php');
+}
+
+// 3. Handle Hapus Pembayaran Angsuran
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'hapus_angsuran') {
     $angsuranId = (int)($_POST['angsuran_id'] ?? 0);
     if ($angsuranId > 0) {
@@ -379,10 +451,32 @@ require_once __DIR__ . '/header.php';
                       <span style="color:var(--text-subtle);">-</span>
                   <?php endif; ?>
                 </td>
-                <td style="text-align: center;">
-                  <button type="button" class="btn btn-outline btn-sm" style="color: var(--danger); border-color: #fee2e2; padding: 4px 8px;" onclick="openHapusAngsuran(<?= $a['id'] ?>, '<?= htmlspecialchars(addslashes($a['no_pinjaman'])) ?>', <?= $a['angsuran_ke'] ?>, '<?= rupiah($a['jumlah_bayar']) ?>')" title="Hapus Angsuran">
-                    <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                  </button>
+                <td style="text-align: center; white-space: nowrap;">
+                  <div style="display: inline-flex; gap: 4px; align-items: center; justify-content: center;">
+                    <button type="button" class="btn btn-outline btn-sm" style="color: var(--primary); border-color: #a7f3d0; padding: 4px 8px;" onclick='openEditAngsuran(<?= json_encode([
+                      "id" => $a["id"],
+                      "pinjaman_id" => $a["pinjaman_id"],
+                      "no_pinjaman" => $a["no_pinjaman"],
+                      "nama_anggota" => $a["nama_anggota"],
+                      "no_anggota" => $a["no_anggota"],
+                      "angsuran_ke" => $a["angsuran_ke"],
+                      "lama_bulan" => $a["lama_bulan"],
+                      "angsuran_pokok" => $a["angsuran_pokok"],
+                      "angsuran_pokok_formatted" => number_format((float)$a["angsuran_pokok"], 0, ',', '.'),
+                      "angsuran_bunga" => $a["angsuran_bunga"],
+                      "angsuran_bunga_formatted" => number_format((float)$a["angsuran_bunga"], 0, ',', '.'),
+                      "jumlah_bayar" => $a["jumlah_bayar"],
+                      "jumlah_bayar_formatted" => number_format((float)$a["jumlah_bayar"], 0, ',', '.'),
+                      "tanggal_bayar" => date("d/m/Y", strtotime($a["tanggal_bayar"])),
+                      "tanggal_bayar_ymd" => $a["tanggal_bayar"],
+                      "keterangan" => $a["keterangan"] ?? ""
+                    ], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>)' title="Edit Angsuran">
+                      <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                    </button>
+                    <button type="button" class="btn btn-outline btn-sm" style="color: var(--danger); border-color: #fee2e2; padding: 4px 8px;" onclick="openHapusAngsuran(<?= $a['id'] ?>, '<?= htmlspecialchars(addslashes($a['no_pinjaman'])) ?>', <?= $a['angsuran_ke'] ?>, '<?= rupiah($a['jumlah_bayar']) ?>')" title="Hapus Angsuran">
+                      <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                    </button>
+                  </div>
                 </td>
               </tr>
             <?php endforeach; ?>
@@ -390,6 +484,92 @@ require_once __DIR__ . '/header.php';
         </tbody>
       </table>
     </div>
+  </div>
+</div>
+
+<!-- Modal Edit Angsuran -->
+<div class="modal-overlay" id="modalEditAngsuran">
+  <div class="modal-card" style="max-width: 540px;">
+    <div class="modal-header">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span style="display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 50%; background: #ecfdf5; color: var(--primary);">
+          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+        </span>
+        <h3 style="margin: 0;">Edit Pembayaran Angsuran</h3>
+      </div>
+      <button type="button" class="modal-close-btn" onclick="closeModal('modalEditAngsuran')">&times;</button>
+    </div>
+    <form method="POST" action="angsuran.php">
+      <input type="hidden" name="action" value="edit_angsuran">
+      <input type="hidden" name="angsuran_id" id="edit_angsuran_id">
+      <div class="modal-body">
+        
+        <!-- Info Pinjaman & Anggota (Readonly) -->
+        <div class="form-group">
+          <label class="form-label">Data Pinjaman</label>
+          <div style="background: #f8fafc; border: 1.5px solid var(--border-color); border-radius: var(--radius-sm); padding: 10px 14px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <div id="edit_display_nama_anggota" style="font-weight: 700; color: var(--secondary); font-size: 0.95rem;">-</div>
+              <div id="edit_display_no_anggota" style="font-size: 0.78rem; color: var(--text-muted); margin-top: 2px;">No. Anggota: -</div>
+            </div>
+            <div id="edit_display_no_pinjaman" class="badge badge-info" style="font-size: 0.85rem; font-weight: 700;">-</div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-col form-group">
+            <label class="form-label">Angsuran Ke- *</label>
+            <input type="number" id="edit_angsuran_ke" name="angsuran_ke" class="form-control" min="1" max="120" required style="font-weight: 700;">
+          </div>
+          <div class="form-col form-group">
+            <label class="form-label">Tanggal Bayar *</label>
+            <div class="input-date-dmy" style="position: relative; display: flex; align-items: center;">
+              <input type="text" id="edit_tanggal_bayar" name="tanggal_bayar" class="form-control date-dmy-input" placeholder="dd/mm/yyyy" maxlength="10" oninput="formatDmyInput(this)" required style="padding-right: 40px; font-weight: 600;">
+              <button type="button" class="btn-date-picker" onclick="triggerDatePicker(this)" style="position: absolute; right: 4px; background: none; border: none; padding: 6px 8px; cursor: pointer; color: var(--text-muted); display: flex; align-items: center;" title="Buka Kalender">
+                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+              </button>
+              <input type="date" id="edit_tanggal_bayar_native" class="native-date-hidden" onchange="syncNativeToDmy(this)" style="position: absolute; right: 0; bottom: 0; width: 0; height: 0; opacity: 0; border: none; pointer-events: none;">
+            </div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-col form-group">
+            <label class="form-label">Angsuran Pokok (Rp) *</label>
+            <input type="text" id="edit_angsuran_pokok" name="angsuran_pokok" class="form-control" placeholder="Rp 0" oninput="formatRupiahInput(this); hitungTotalEditAngsuran();" required style="font-weight: 700;">
+          </div>
+          <div class="form-col form-group">
+            <label class="form-label">Angsuran Jasa / Bunga (Rp) *</label>
+            <input type="text" id="edit_angsuran_bunga" name="angsuran_bunga" class="form-control" placeholder="Rp 0" oninput="formatRupiahInput(this); hitungTotalEditAngsuran();" required style="font-weight: 700;">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Total Pembayaran (Rp) *</label>
+          <input type="text" id="edit_jumlah_bayar" name="jumlah_bayar" class="form-control" placeholder="Rp 0" oninput="formatRupiahInput(this)" required readonly style="font-weight: 700; color: var(--primary); background: #f8fafc;">
+          <small style="color: var(--text-muted); font-size: 0.78rem;">Otomatis dihitung dari Pokok + Jasa / Bunga</small>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Keterangan / Metode *</label>
+          <select name="keterangan" id="edit_keterangan" class="form-control">
+            <option value="Tunai">Tunai</option>
+            <option value="TF">Transfer Bank (TF)</option>
+            <option value="Gaji">Potong Gaji</option>
+            <option value="TPP">Potong TPP</option>
+            <option value="Lainnya">Lainnya</option>
+          </select>
+        </div>
+
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('modalEditAngsuran')">Batal</button>
+        <button type="submit" class="btn btn-primary">
+          <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+          Simpan Perubahan
+        </button>
+      </div>
+    </form>
   </div>
 </div>
 
@@ -558,6 +738,55 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 });
+
+// Buka Modal Edit Angsuran Modern
+function openEditAngsuran(d) {
+  document.getElementById('edit_angsuran_id').value = d.id;
+  document.getElementById('edit_display_nama_anggota').textContent = d.nama_anggota;
+  document.getElementById('edit_display_no_anggota').textContent = 'No. Anggota: ' + (d.no_anggota || '-');
+  document.getElementById('edit_display_no_pinjaman').textContent = d.no_pinjaman;
+  document.getElementById('edit_angsuran_ke').value = d.angsuran_ke;
+  document.getElementById('edit_angsuran_pokok').value = 'Rp ' + d.angsuran_pokok_formatted;
+  document.getElementById('edit_angsuran_bunga').value = 'Rp ' + d.angsuran_bunga_formatted;
+  document.getElementById('edit_jumlah_bayar').value = 'Rp ' + d.jumlah_bayar_formatted;
+  document.getElementById('edit_tanggal_bayar').value = d.tanggal_bayar;
+  if (d.tanggal_bayar_ymd) {
+    document.getElementById('edit_tanggal_bayar_native').value = d.tanggal_bayar_ymd;
+  }
+  
+  let selKet = document.getElementById('edit_keterangan');
+  if (selKet) {
+    let matched = false;
+    for (let i = 0; i < selKet.options.length; i++) {
+      if (selKet.options[i].value === d.keterangan) {
+        selKet.selectedIndex = i;
+        matched = true;
+        break;
+      }
+    }
+    if (!matched && d.keterangan) {
+      let opt = new Option(d.keterangan, d.keterangan);
+      selKet.add(opt);
+      selKet.value = d.keterangan;
+    }
+  }
+
+  openModal('modalEditAngsuran');
+}
+
+// Hitung Otomatis Total Pembayaran pada Modal Edit (Pokok + Bunga)
+function hitungTotalEditAngsuran() {
+  let elPokok = document.getElementById('edit_angsuran_pokok');
+  let elBunga = document.getElementById('edit_angsuran_bunga');
+  let elTotal = document.getElementById('edit_jumlah_bayar');
+  if (!elPokok || !elBunga || !elTotal) return;
+
+  let pokok = parseFloat(elPokok.value.replace(/[^0-9]/g, '')) || 0;
+  let bunga = parseFloat(elBunga.value.replace(/[^0-9]/g, '')) || 0;
+  let total = pokok + bunga;
+
+  elTotal.value = 'Rp ' + total.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
 
 // Buka Modal Hapus Angsuran Modern
 function openHapusAngsuran(id, noPinj, angsKe, nominal) {
