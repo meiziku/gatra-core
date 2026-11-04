@@ -114,25 +114,25 @@ include 'header.php';
     </p>
   </div>
 
-  <div class="table-responsive" style="padding: 12px;">
-    <table class="matrix-table" id="matrixSimpananPendidikan" style="width: 100%; border-collapse: collapse; font-family: 'Plus Jakarta Sans', sans-serif;">
+  <div class="table-freeze-container" style="max-height: calc(100vh - 200px); padding: 4px;">
+    <table class="matrix-table" id="matrixSimpananPendidikan" style="width: 100%; border-collapse: separate; border-spacing: 0; font-family: 'Plus Jakarta Sans', sans-serif;">
       <thead>
-        <tr style="background-color: #ffffff; border: 2px solid #0f172a;">
-          <th style="border: 2px solid #0f172a; padding: 10px 14px; font-size: 1rem; font-weight: 800; text-align: left; width: 170px;">
+        <tr style="background-color: #ffffff;">
+          <th style="border: 2px solid #0f172a; padding: 10px 14px; font-size: 1rem; font-weight: 800; text-align: left; width: 170px; position: sticky; top: 0; z-index: 25; background-color: #ffffff;">
             Tahun
           </th>
           <?php foreach ($kolomTenor as $col): ?>
-            <th style="border: 2px solid #0f172a; padding: 10px 14px; font-size: 1.05rem; font-weight: 800; text-align: right;">
+            <th style="border: 2px solid #0f172a; padding: 10px 14px; font-size: 1.05rem; font-weight: 800; text-align: right; position: sticky; top: 0; z-index: 25; background-color: #ffffff;">
               <?= $col['tahun'] ?>
             </th>
           <?php endforeach; ?>
         </tr>
-        <tr style="background-color: #ffffff; border: 2px solid #0f172a;">
-          <th style="border: 2px solid #0f172a; padding: 10px 14px; font-size: 1rem; font-weight: 800; text-align: left; background-color: #f8fafc;">
+        <tr style="background-color: #f8fafc;">
+          <th style="border: 2px solid #0f172a; padding: 10px 14px; font-size: 1rem; font-weight: 800; text-align: left; background-color: #f8fafc; position: sticky; top: 46px; z-index: 25;">
             Bulan
           </th>
           <?php foreach ($kolomTenor as $col): ?>
-            <th style="border: 2px solid #0f172a; padding: 10px 14px; font-size: 1.05rem; font-weight: 800; text-align: right; background-color: #f8fafc;">
+            <th style="border: 2px solid #0f172a; padding: 10px 14px; font-size: 1.05rem; font-weight: 800; text-align: right; background-color: #f8fafc; position: sticky; top: 46px; z-index: 25;">
               <?= $col['bulan'] ?>
             </th>
           <?php endforeach; ?>

@@ -578,29 +578,54 @@ a:hover {
 
 .table-freeze-container {
   width: 100%;
-  max-height: calc(100vh - 240px);
+  max-height: calc(100vh - 220px);
   min-height: 380px;
   overflow-y: auto;
   overflow-x: auto;
   position: relative;
+  -webkit-overflow-scrolling: touch;
 }
 
-.table-freeze-container .table thead th {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  background-color: #f8fafc;
-  box-shadow: 0 1px 0 var(--border-color);
+.table-freeze-container table thead th,
+.table-freeze-container .table thead th,
+.table-freeze-container thead th {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 30 !important;
+  background-color: #f8fafc !important;
+  background-clip: padding-box;
+  box-shadow: inset 0 -1px 0 var(--border-color), 0 2px 4px rgba(0, 0, 0, 0.06) !important;
+}
+
+.table-freeze-container table tfoot th,
+.table-freeze-container table tfoot td,
+.table-freeze-container .table tfoot th,
+.table-freeze-container .table tfoot td,
+.table-freeze-container tfoot th,
+.table-freeze-container tfoot td {
+  position: sticky !important;
+  bottom: 0 !important;
+  z-index: 20 !important;
+  background-color: #f1f5f9 !important;
+  box-shadow: inset 0 1px 0 var(--border-color), 0 -2px 4px rgba(0, 0, 0, 0.04) !important;
 }
 
 .table-freeze-container::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
+}
+
+.table-freeze-container::-webkit-scrollbar-track {
+  background: #f8fafc;
 }
 
 .table-freeze-container::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: #94a3b8;
   border-radius: 4px;
+}
+
+.table-freeze-container::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
 }
 
 .table {

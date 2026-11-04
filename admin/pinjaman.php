@@ -188,7 +188,7 @@ require_once __DIR__ . '/header.php';
     </div>
   </div>
 
-  <div class="table-responsive">
+  <div class="table-freeze-container">
     <table class="table" id="tablePinjaman">
       <thead>
         <tr>
@@ -209,8 +209,8 @@ require_once __DIR__ . '/header.php';
           <tr><td colspan="10" style="text-align:center; padding:32px; color:var(--text-subtle);">Belum ada pinjaman yang terdaftar.</td></tr>
         <?php else: ?>
           <?php foreach ($listPinjaman as $p): 
-            $sisaTagihan = $p['total_harus_dibayar'] - $p['total_dibayar'];
-            $isLunas = ($sisaTagihan <= 0);
+            $sisaPokok = max(0, (float)$p['jumlah_pinjaman'] - (float)$p['pokok_dibayar']);
+            $isLunas = ($sisaPokok <= 0) || ($p['status'] === 'lunas');
           ?>
             <tr>
               <td><strong><?= htmlspecialchars($p['no_pinjaman']) ?></strong></td>
@@ -227,13 +227,19 @@ require_once __DIR__ . '/header.php';
                   <div style="font-size:0.75rem; color:#15803d; font-weight:600; margin-top:2px;">Asuransi: <?= rupiah($p['asuransi']) ?></div>
                 <?php endif; ?>
               </td>
-              <td class="table-amount text-blue"><?= rupiah($p['total_angsuran_bulanan']) ?></td>
+              <td style="white-space: nowrap;">
+                <div class="table-amount text-blue" style="font-weight: 700;"><?= rupiah($p['total_angsuran_bulanan']) ?></div>
+                <small style="color:var(--text-muted); font-size:0.75rem; display:block; margin-top:2px; line-height: 1.4;">
+                  Pokok: <?= rupiah($p['angsuran_pokok']) ?><br>
+                  Jasa: <?= rupiah($p['angsuran_bunga']) ?>
+                </small>
+              </td>
               <td class="table-amount text-green">
                 <?= rupiah($p['total_dibayar']) ?>
                 <div style="font-size:0.75rem; color:var(--text-subtle);"><?= $p['kali_angsuran'] ?>x angsuran</div>
               </td>
               <td class="table-amount <?= $isLunas ? 'text-green' : 'text-red' ?>">
-                <?= rupiah(max(0, $sisaTagihan)) ?>
+                <?= rupiah($sisaPokok) ?>
               </td>
               <td>
                 <?php if ($isLunas): ?>

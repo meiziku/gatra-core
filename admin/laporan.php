@@ -865,7 +865,7 @@ include __DIR__ . '/header.php';
       </div>
     </div>
 
-    <div class="table-responsive">
+    <div class="table-freeze-container">
       <table class="table" id="tableSimpananWajib">
         <thead>
           <tr>
@@ -967,7 +967,7 @@ include __DIR__ . '/header.php';
       </div>
     </div>
 
-    <div class="table-responsive">
+    <div class="table-freeze-container">
       <table class="table" id="tableSimpananManasuka">
         <thead>
           <tr>

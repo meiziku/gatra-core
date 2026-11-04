@@ -402,7 +402,7 @@ require_once __DIR__ . '/header.php';
       <h3 style="margin: 0; font-size: 1.05rem;">Riwayat Pembayaran Angsuran Masuk</h3>
       <input type="text" class="form-control" style="width: 240px; padding: 6px 10px; font-size: 0.82rem;" placeholder="Cari angsuran / keterangan..." data-table-search="tableAngsuran">
     </div>
-    <div class="table-responsive">
+    <div class="table-freeze-container">
       <table class="table" id="tableAngsuran">
         <thead>
           <tr>

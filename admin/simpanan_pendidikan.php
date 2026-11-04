@@ -310,7 +310,7 @@ include 'header.php';
     </div>
   </div>
 
-  <div class="table-responsive">
+  <div class="table-freeze-container">
     <table class="table" id="tableSimpananPendidikan">
       <thead>
         <tr>
@@ -870,19 +870,19 @@ include 'header.php';
       </div>
 
       <!-- Matrix Table Scrollable -->
-      <div class="table-responsive" style="max-height: 480px; overflow-y: auto;">
-        <table class="matrix-table" style="width: 100%; border-collapse: collapse; font-family: 'Plus Jakarta Sans', sans-serif;">
+      <div class="table-freeze-container" style="max-height: 520px;">
+        <table class="matrix-table" style="width: 100%; border-collapse: separate; border-spacing: 0; font-family: 'Plus Jakarta Sans', sans-serif;">
           <thead>
-            <tr style="background-color: #f8fafc; border: 2px solid #0f172a; position: sticky; top: 0; z-index: 5;">
-              <th style="border: 1.5px solid #0f172a; padding: 8px 12px; font-size: 0.9rem; font-weight: 800; text-align: left;">Tahun</th>
+            <tr style="background-color: #f8fafc;">
+              <th style="border: 1.5px solid #0f172a; padding: 8px 12px; font-size: 0.9rem; font-weight: 800; text-align: left; position: sticky; top: 0; z-index: 25; background-color: #f8fafc;">Tahun</th>
               <?php foreach ($kolomTenor as $col): ?>
-                <th style="border: 1.5px solid #0f172a; padding: 8px 12px; font-size: 0.95rem; font-weight: 800; text-align: right;"><?= $col['tahun'] ?></th>
+                <th style="border: 1.5px solid #0f172a; padding: 8px 12px; font-size: 0.95rem; font-weight: 800; text-align: right; position: sticky; top: 0; z-index: 25; background-color: #f8fafc;"><?= $col['tahun'] ?></th>
               <?php endforeach; ?>
             </tr>
-            <tr style="background-color: #f1f5f9; border: 2px solid #0f172a; position: sticky; top: 35px; z-index: 5;">
-              <th style="border: 1.5px solid #0f172a; padding: 8px 12px; font-size: 0.9rem; font-weight: 800; text-align: left;">Bulan</th>
+            <tr style="background-color: #f1f5f9;">
+              <th style="border: 1.5px solid #0f172a; padding: 8px 12px; font-size: 0.9rem; font-weight: 800; text-align: left; position: sticky; top: 38px; z-index: 25; background-color: #f1f5f9;">Bulan</th>
               <?php foreach ($kolomTenor as $col): ?>
-                <th style="border: 1.5px solid #0f172a; padding: 8px 12px; font-size: 0.95rem; font-weight: 800; text-align: right;"><?= $col['bulan'] ?></th>
+                <th style="border: 1.5px solid #0f172a; padding: 8px 12px; font-size: 0.95rem; font-weight: 800; text-align: right; position: sticky; top: 38px; z-index: 25; background-color: #f1f5f9;"><?= $col['bulan'] ?></th>
               <?php endforeach; ?>
             </tr>
           </thead>

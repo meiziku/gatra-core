@@ -156,7 +156,7 @@ require_once __DIR__ . '/header.php';
     </div>
   </div>
 
-  <div class="table-responsive">
+  <div class="table-freeze-container">
     <table class="table" id="tableSimpanan">
       <thead>
         <tr>
