@@ -224,13 +224,13 @@ require_once __DIR__ . '/header.php';
 }
 </style>
 
-<div style="display: grid; grid-template-columns: 360px 1fr; gap: 24px; align-items: flex-start;">
+<div style="display: grid; grid-template-columns: 400px 1fr; gap: 24px; align-items: flex-start;">
   <!-- Form Bayar Angsuran -->
-  <div class="card" style="margin-bottom: 0;">
-    <div class="card-header">
+  <div class="card" style="margin-bottom: 0; overflow: visible !important;">
+    <div class="card-header" style="overflow: visible !important;">
       <h3 style="margin: 0; font-size: 1.05rem;">Form Pembayaran Angsuran</h3>
     </div>
-    <div class="card-body">
+    <div class="card-body" style="overflow: visible !important;">
       <form method="POST" action="angsuran.php" id="formBayarAngsuran">
         <input type="hidden" name="action" value="bayar_angsuran">
 
@@ -238,8 +238,14 @@ require_once __DIR__ . '/header.php';
         <input type="hidden" name="pinjaman_id" id="hidden_pinjaman_id" value="<?= $selectedPinjamanId ?>">
 
         <!-- Dropdown Pinjaman Berjalan dengan Fitur Pencarian -->
-        <div class="form-group" style="position: relative;">
-          <label class="form-label">Pilih Pinjaman Berjalan *</label>
+        <div class="form-group" style="position: relative; z-index: 100;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <label class="form-label" style="margin-bottom: 0;">Pilih Pinjaman Berjalan *</label>
+            <button type="button" class="btn btn-outline btn-sm" style="font-size: 0.74rem; padding: 2px 8px; color: var(--primary); border-color: var(--primary-border);" onclick="openModal('modalPilihPinjaman')">
+              <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+              Cari dari Tabel
+            </button>
+          </div>
           
           <!-- Tombol / Kotak Pemicu Dropdown -->
           <div id="pinjamanDropdownTrigger" class="form-control" style="cursor: pointer; display: flex; align-items: center; justify-content: space-between; min-height: 42px; padding: 8px 12px; background: #fff; user-select: none;">
@@ -249,26 +255,26 @@ require_once __DIR__ . '/header.php';
               ?>
                 <?= htmlspecialchars($selectedPinjaman['no_pinjaman']) ?> - <?= htmlspecialchars($selectedPinjaman['nama_anggota']) ?> (Sisa: <?= rupiah($sisaSel) ?>)
               <?php else: ?>
-                -- Pilih Pinjaman Anggota --
+                -- Klik untuk Memilih Pinjaman --
               <?php endif; ?>
             </span>
             <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color: var(--text-muted); flex-shrink: 0; margin-left: 8px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
           </div>
 
-          <!-- Panel Menu Dropdown dengan Kotak Pencarian -->
-          <div id="pinjamanDropdownMenu" style="display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: #fff; border: 1px solid var(--border-color); border-radius: var(--radius-sm); box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1); z-index: 1050; overflow: hidden;">
+          <!-- Panel Menu Dropdown dengan Kotak Pencarian (Tidak Terpotong / Overflow Bebas) -->
+          <div id="pinjamanDropdownMenu" style="display: none; position: absolute; top: calc(100% + 4px); left: 0; width: 440px; max-width: calc(100vw - 32px); background: #fff; border: 1.5px solid var(--border-color); border-radius: var(--radius-sm); box-shadow: 0 14px 35px -5px rgba(0,0,0,0.18), 0 8px 12px -3px rgba(0,0,0,0.1); z-index: 2000; overflow: hidden;">
             <!-- Kolom Pencarian di dalam dropdown -->
-            <div style="padding: 10px; border-bottom: 1px solid var(--border-color); background: #f8fafc;">
+            <div style="padding: 10px 12px; border-bottom: 1px solid var(--border-color); background: #f8fafc;">
               <div style="position: relative; display: flex; align-items: center;">
                 <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="position: absolute; left: 10px; color: var(--text-muted); pointer-events: none;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                <input type="text" id="pinjamanSearchInput" class="form-control form-control-sm" placeholder="Ketik nama anggota atau no. pinjaman..." style="padding-left: 32px; font-size: 0.84rem;" autocomplete="off">
+                <input type="text" id="pinjamanSearchInput" class="form-control form-control-sm" placeholder="Ketik nama anggota atau no. pinjaman..." style="padding-left: 32px; font-size: 0.85rem;" autocomplete="off">
               </div>
             </div>
 
-            <!-- Daftar Opsi Pinjaman -->
-            <div id="pinjamanOptionsList" style="max-height: 240px; overflow-y: auto;">
-              <div class="pinjaman-option" data-id="" data-text="" style="color: var(--text-muted); font-size: 0.85rem;">
-                -- Batalkan Pilihan --
+            <!-- Daftar Opsi Pinjaman Lengkap & Nyaman Dilihat -->
+            <div id="pinjamanOptionsList" style="max-height: 360px; overflow-y: auto;">
+              <div class="pinjaman-option" data-id="" data-text="" style="color: var(--text-muted); font-size: 0.85rem; padding: 10px 14px;">
+                &larr; Batalkan Pilihan Pinjaman
               </div>
               <?php foreach ($pinjamanBerjalan as $pb): 
                 $sisa = $pb['total_harus_dibayar'] - $pb['total_dibayar'];
@@ -277,24 +283,29 @@ require_once __DIR__ . '/header.php';
               ?>
                 <div class="pinjaman-option <?= $isSelected ? 'is-selected' : '' ?>" 
                      data-id="<?= $pb['id'] ?>"
-                     data-text="<?= htmlspecialchars($searchKeyword) ?>">
+                     data-text="<?= htmlspecialchars($searchKeyword) ?>"
+                     style="padding: 10px 14px; border-bottom: 1px solid #f1f5f9; cursor: pointer;">
                   <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
-                    <span style="font-weight: 700; color: var(--secondary); font-size: 0.86rem;">
+                    <span style="font-weight: 700; color: var(--secondary); font-size: 0.88rem;">
                       <?= htmlspecialchars($pb['no_pinjaman']) ?> - <?= htmlspecialchars($pb['nama_anggota']) ?>
                     </span>
-                    <span class="badge <?= $isSelected ? 'badge-primary' : 'badge-info' ?>" style="font-size: 0.7rem; white-space: nowrap;">
-                      Ke-<?= $pb['kali_angsuran'] + 1 ?>
+                    <span class="badge <?= $isSelected ? 'badge-primary' : 'badge-info' ?>" style="font-size: 0.72rem; white-space: nowrap;">
+                      Bulan ke-<?= $pb['kali_angsuran'] + 1 ?> dari <?= $pb['lama_bulan'] ?>
                     </span>
                   </div>
-                  <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); margin-top: 3px;">
-                    <span>No. Anggota: <?= htmlspecialchars($pb['no_anggota']) ?></span>
+                  <div style="display: flex; justify-content: space-between; font-size: 0.76rem; color: var(--text-muted); margin-top: 4px;">
+                    <span>No. Angg: <strong><?= htmlspecialchars($pb['no_anggota']) ?></strong> &bull; Plafon: <?= rupiah($pb['jumlah_pinjaman']) ?></span>
                     <span>Sisa: <strong style="color: #dc2626;"><?= rupiah($sisa) ?></strong></span>
+                  </div>
+                  <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--primary); margin-top: 2px;">
+                    <span>Cicilan: <strong><?= rupiah($pb['total_angsuran_bulanan']) ?></strong> / bln</span>
+                    <span style="color: var(--text-subtle);">Terbayar: <?= $pb['kali_angsuran'] ?>x</span>
                   </div>
                 </div>
               <?php endforeach; ?>
               
-              <div id="pinjamanEmptyNotice" style="display: none; padding: 16px; text-align: center; color: var(--text-muted); font-size: 0.82rem;">
-                Tidak ada pinjaman yang cocok.
+              <div id="pinjamanEmptyNotice" style="display: none; padding: 20px; text-align: center; color: var(--text-muted); font-size: 0.85rem;">
+                Tidak ada pinjaman berjalan yang cocok dengan pencarian.
               </div>
             </div>
           </div>
@@ -483,6 +494,84 @@ require_once __DIR__ . '/header.php';
           <?php endif; ?>
         </tbody>
       </table>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Pilih Pinjaman Berjalan (Pencarian Tabel Luas & Nyaman) -->
+<div class="modal-overlay" id="modalPilihPinjaman">
+  <div class="modal-card" style="max-width: 840px;">
+    <div class="modal-header">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span style="display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 50%; background: #ecfdf5; color: var(--primary);">
+          <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        </span>
+        <div>
+          <h3 style="margin: 0; font-size: 1.1rem; color: var(--secondary);">Pilih Pinjaman Berjalan</h3>
+          <small style="color: var(--text-muted);">Pilih akun pinjaman anggota yang akan dibayarkan angsurannya</small>
+        </div>
+      </div>
+      <button type="button" class="modal-close-btn" onclick="closeModal('modalPilihPinjaman')">&times;</button>
+    </div>
+    <div class="modal-body" style="padding: 16px 20px;">
+      <div style="margin-bottom: 14px;">
+        <input type="text" class="form-control" placeholder="Ketik nama anggota, no. pinjaman, atau no. anggota..." data-table-search="tablePilihPinjamanModal" autofocus style="padding: 9px 14px; font-size: 0.9rem;">
+      </div>
+      <div class="table-freeze-container" style="max-height: 420px;">
+        <table class="table" id="tablePilihPinjamanModal">
+          <thead>
+            <tr>
+              <th>No. Pinjaman</th>
+              <th>Anggota</th>
+              <th>Plafon & Tenor</th>
+              <th>Cicilan / Bln</th>
+              <th>Sisa Tagihan</th>
+              <th>Status Angsuran</th>
+              <th style="text-align: center; width: 80px;">Aksi</th>
+            </tr>
+          </thead>
+          <tbody>
+            <?php if (empty($pinjamanBerjalan)): ?>
+              <tr><td colspan="7" style="text-align: center; padding: 28px; color: var(--text-subtle);">Tidak ada pinjaman berjalan yang aktif.</td></tr>
+            <?php else: ?>
+              <?php foreach ($pinjamanBerjalan as $pb): 
+                $sisaPB = $pb['total_harus_dibayar'] - $pb['total_dibayar'];
+              ?>
+                <tr>
+                  <td><strong><?= htmlspecialchars($pb['no_pinjaman']) ?></strong></td>
+                  <td>
+                    <div style="font-weight: 700; color: var(--secondary);"><?= htmlspecialchars($pb['nama_anggota']) ?></div>
+                    <small style="color: var(--text-muted);"><?= htmlspecialchars($pb['no_anggota']) ?></small>
+                  </td>
+                  <td>
+                    <div><?= rupiah($pb['jumlah_pinjaman']) ?></div>
+                    <small style="color: var(--text-muted);"><?= $pb['lama_bulan'] ?> Bulan (<?= $pb['bunga_persen'] ?>%/bln)</small>
+                  </td>
+                  <td class="table-amount text-blue">
+                    <?= rupiah($pb['total_angsuran_bulanan']) ?>
+                  </td>
+                  <td class="table-amount text-red" style="font-weight: 700;">
+                    <?= rupiah($sisaPB) ?>
+                  </td>
+                  <td>
+                    <span class="badge badge-info" style="font-size: 0.72rem;">
+                      Bulan ke-<?= $pb['kali_angsuran'] + 1 ?> dari <?= $pb['lama_bulan'] ?>
+                    </span>
+                  </td>
+                  <td style="text-align: center;">
+                    <a href="angsuran.php?pinjaman_id=<?= $pb['id'] ?>" class="btn btn-primary btn-sm" style="padding: 5px 12px; font-size: 0.78rem; font-weight: 700;">
+                      Pilih
+                    </a>
+                  </td>
+                </tr>
+              <?php endforeach; ?>
+            <?php endif; ?>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-footer" style="padding: 12px 20px;">
+      <button type="button" class="btn btn-secondary" onclick="closeModal('modalPilihPinjaman')">Tutup</button>
     </div>
   </div>
 </div>

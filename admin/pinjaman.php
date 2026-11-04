@@ -168,12 +168,76 @@ $listPinjaman = $db->query("
     ORDER BY p.id DESC
 ")->fetchAll();
 
+// Ambil seluruh riwayat angsuran untuk modal detail rincian pembayaran
+$riwayatAngsuran = $db->query("
+    SELECT * FROM angsuran ORDER BY pinjaman_id ASC, angsuran_ke ASC, tanggal_bayar ASC
+")->fetchAll(PDO::FETCH_ASSOC);
+
+$angsuranByPinjaman = [];
+foreach ($riwayatAngsuran as $ag) {
+    $angsuranByPinjaman[$ag['pinjaman_id']][] = $ag;
+}
+
+$loanDetailsJson = [];
+foreach ($listPinjaman as $p) {
+    $pId = $p['id'];
+    $riwayat = $angsuranByPinjaman[$pId] ?? [];
+    $sisaP = max(0, (float)$p['jumlah_pinjaman'] - (float)$p['pokok_dibayar']);
+    $sisaT = max(0, (float)$p['total_harus_dibayar'] - (float)$p['total_dibayar']);
+    $isLun = ($sisaP <= 0) || ($p['status'] === 'lunas');
+
+    $loanDetailsJson[$pId] = [
+        'id' => (int)$p['id'],
+        'no_pinjaman' => $p['no_pinjaman'],
+        'nama_anggota' => $p['nama_anggota'],
+        'no_anggota' => $p['no_anggota'] ?? '-',
+        'jumlah_pinjaman' => rupiah($p['jumlah_pinjaman']),
+        'lama_bulan' => (int)$p['lama_bulan'] . ' Bulan',
+        'bunga_persen' => $p['bunga_persen'] . '% / bln',
+        'asuransi' => ((float)$p['asuransi'] > 0) ? rupiah($p['asuransi']) : '-',
+        'angsuran_pokok' => rupiah($p['angsuran_pokok']),
+        'angsuran_bunga' => rupiah($p['angsuran_bunga']),
+        'total_angsuran_bulanan' => rupiah($p['total_angsuran_bulanan']),
+        'total_harus_dibayar' => rupiah($p['total_harus_dibayar']),
+        'total_dibayar' => rupiah($p['total_dibayar']),
+        'pokok_dibayar' => rupiah($p['pokok_dibayar']),
+        'sisa_pokok' => rupiah($sisaP),
+        'sisa_pokok_raw' => $sisaP,
+        'sisa_tagihan' => rupiah($sisaT),
+        'kali_angsuran' => (int)$p['kali_angsuran'],
+        'tanggal_pencairan' => date('d/m/Y', strtotime($p['tanggal_pencairan'] ?? $p['tanggal_pengajuan'])),
+        'status' => $p['status'],
+        'is_lunas' => $isLun,
+        'keterangan' => !empty($p['keterangan']) ? $p['keterangan'] : '-',
+        'riwayat' => array_map(function($a) {
+            return [
+                'ke' => (int)$a['angsuran_ke'],
+                'tanggal' => date('d/m/Y', strtotime($a['tanggal_bayar'])),
+                'pokok' => rupiah($a['angsuran_pokok']),
+                'bunga' => rupiah($a['angsuran_bunga']),
+                'total' => rupiah($a['jumlah_bayar']),
+                'keterangan' => !empty($a['keterangan']) ? $a['keterangan'] : '-',
+                'petugas' => !empty($a['petugas']) ? $a['petugas'] : '-'
+            ];
+        }, $riwayat)
+    ];
+}
+
 $pageTitle = 'Pinjaman Anggota';
 $pageSubtitle = 'Input pinjaman baru dan pantau status sisa pinjaman berjalan';
 $activePage = 'pinjaman';
 
 require_once __DIR__ . '/header.php';
 ?>
+
+<style>
+.loan-row-clickable {
+  transition: background-color 0.15s ease;
+}
+.loan-row-clickable:hover {
+  background-color: #f1f5f9 !important;
+}
+</style>
 
 <!-- Action Bar -->
 <div class="card" style="margin-bottom: 24px;">
@@ -212,10 +276,14 @@ require_once __DIR__ . '/header.php';
             $sisaPokok = max(0, (float)$p['jumlah_pinjaman'] - (float)$p['pokok_dibayar']);
             $isLunas = ($sisaPokok <= 0) || ($p['status'] === 'lunas');
           ?>
-            <tr>
-              <td><strong><?= htmlspecialchars($p['no_pinjaman']) ?></strong></td>
+            <tr class="loan-row-clickable" onclick="openDetailPinjaman(<?= $p['id'] ?>)" style="cursor: pointer;" title="Klik baris untuk melihat detail rincian pembayaran pinjaman <?= htmlspecialchars($p['no_pinjaman']) ?>">
               <td>
-                <div><?= htmlspecialchars($p['nama_anggota']) ?></div>
+                <span class="badge badge-info" style="font-weight: 700; font-size: 0.82rem; cursor: pointer;">
+                  <?= htmlspecialchars($p['no_pinjaman']) ?>
+                </span>
+              </td>
+              <td>
+                <div style="font-weight: 600; color: var(--secondary);"><?= htmlspecialchars($p['nama_anggota']) ?></div>
                 <small style="color:var(--text-subtle);"><?= htmlspecialchars($p['no_anggota']) ?></small>
               </td>
               <td><?= date('d/m/Y', strtotime($p['tanggal_pencairan'] ?? $p['tanggal_pengajuan'])) ?></td>
@@ -250,13 +318,16 @@ require_once __DIR__ . '/header.php';
               </td>
               <td style="white-space: nowrap; text-align: center;">
                 <div style="display: inline-flex; gap: 4px; align-items: center; justify-content: center;">
+                  <button type="button" class="btn btn-outline btn-sm" style="color: var(--accent); border-color: #bfdbfe; padding: 4px 8px;" onclick="event.stopPropagation(); openDetailPinjaman(<?= $p['id'] ?>)" title="Lihat Detail Pembayaran">
+                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                  </button>
                   <?php if (!$isLunas): ?>
-                    <a href="angsuran.php?pinjaman_id=<?= $p['id'] ?>" class="btn btn-secondary btn-sm" style="padding: 4px 8px; font-size: 0.78rem;" title="Catat Angsuran">
+                    <a href="angsuran.php?pinjaman_id=<?= $p['id'] ?>" class="btn btn-secondary btn-sm" style="padding: 4px 8px; font-size: 0.78rem;" title="Catat Angsuran" onclick="event.stopPropagation();">
                       <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
                       Bayar
                     </a>
                   <?php endif; ?>
-                  <button type="button" class="btn btn-outline btn-sm" style="color: var(--primary); border-color: #a7f3d0; padding: 4px 8px;" onclick='openEditPinjaman(<?= json_encode([
+                  <button type="button" class="btn btn-outline btn-sm" style="color: var(--primary); border-color: #a7f3d0; padding: 4px 8px;" onclick='event.stopPropagation(); openEditPinjaman(<?= json_encode([
                     "id" => $p["id"],
                     "no_pinjaman" => $p["no_pinjaman"],
                     "nama_anggota" => $p["nama_anggota"],
@@ -276,7 +347,7 @@ require_once __DIR__ . '/header.php';
                   ], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>)' title="Edit Pinjaman">
                     <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                   </button>
-                  <button type="button" class="btn btn-outline btn-sm" style="color: var(--danger); border-color: #fee2e2; padding: 4px 8px;" onclick="openHapusPinjaman(<?= $p['id'] ?>, '<?= htmlspecialchars(addslashes($p['no_pinjaman'])) ?>', '<?= htmlspecialchars(addslashes($p['nama_anggota'])) ?>')" title="Hapus Pinjaman">
+                  <button type="button" class="btn btn-outline btn-sm" style="color: var(--danger); border-color: #fee2e2; padding: 4px 8px;" onclick="event.stopPropagation(); openHapusPinjaman(<?= $p['id'] ?>, '<?= htmlspecialchars(addslashes($p['no_pinjaman'])) ?>', '<?= htmlspecialchars(addslashes($p['nama_anggota'])) ?>')" title="Hapus Pinjaman">
                     <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                   </button>
                 </div>
@@ -286,6 +357,119 @@ require_once __DIR__ . '/header.php';
         <?php endif; ?>
       </tbody>
     </table>
+  </div>
+</div>
+
+<!-- Modal Detail Rincian Pembayaran Pinjaman -->
+<div class="modal-overlay" id="modalDetailPinjaman">
+  <div class="modal-card" style="max-width: 780px;">
+    <div class="modal-header" style="border-bottom: 1px solid var(--border-color); padding: 18px 24px;">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <div style="width: 38px; height: 38px; border-radius: 8px; background: #ecfdf5; color: var(--primary); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+          <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        </div>
+        <div>
+          <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--secondary);">Detail Portofolio Pinjaman</h3>
+          <div style="font-size: 0.82rem; color: var(--text-muted); margin-top: 2px;">
+            <span id="det_no_pinjaman" class="badge badge-info" style="font-weight: 700; font-size: 0.78rem;">-</span> &bull; 
+            Peminjam: <strong id="det_nama_anggota" style="color: var(--secondary);">-</strong> (<span id="det_no_anggota">-</span>)
+          </div>
+        </div>
+      </div>
+      <button type="button" class="modal-close-btn" onclick="closeModal('modalDetailPinjaman')">&times;</button>
+    </div>
+    
+    <div class="modal-body" style="padding: 20px 24px; max-height: calc(85vh - 130px); overflow-y: auto;">
+      <!-- 3 Kartu Metrik Ringkasan Pinjaman -->
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 20px;">
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: var(--radius-sm); padding: 14px 16px;">
+          <div style="font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; color: var(--text-muted);">Plafon Pokok</div>
+          <div id="det_plafon" style="font-size: 1.25rem; font-weight: 800; color: var(--secondary); margin-top: 4px; white-space: nowrap;">Rp 0</div>
+          <div style="font-size: 0.74rem; color: var(--text-subtle); margin-top: 2px;">Pencairan: <span id="det_tgl_cair">-</span></div>
+        </div>
+        <div style="background: #ecfdf5; border: 1px solid #bbf7d0; border-radius: var(--radius-sm); padding: 14px 16px;">
+          <div style="font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; color: #166534;">Pokok Terbayar</div>
+          <div id="det_pokok_terbayar" style="font-size: 1.25rem; font-weight: 800; color: #15803d; margin-top: 4px; white-space: nowrap;">Rp 0</div>
+          <div style="font-size: 0.74rem; color: #166534; margin-top: 2px;">Terbayar <strong id="det_kali_angsuran">0</strong>x dari <span id="det_tenor_bln">0 Bulan</span></div>
+        </div>
+        <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: var(--radius-sm); padding: 14px 16px;">
+          <div style="font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; color: #991b1b;">Sisa Pokok Pinjaman</div>
+          <div id="det_sisa_pokok" style="font-size: 1.25rem; font-weight: 800; color: #b91c1c; margin-top: 4px; white-space: nowrap;">Rp 0</div>
+          <div style="font-size: 0.74rem; margin-top: 2px;">Status: <span id="det_status_badge" class="badge badge-warning">-</span></div>
+        </div>
+      </div>
+
+      <!-- Informasi Skema Angsuran & Ketentuan -->
+      <div style="background: #f8fafc; border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 14px 16px; margin-bottom: 20px;">
+        <div style="font-weight: 700; color: var(--secondary); font-size: 0.88rem; margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
+          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          Skema Cicilan & Biaya
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px 20px; font-size: 0.84rem;">
+          <div>
+            <span style="color: var(--text-muted); display: block; font-size: 0.76rem;">Tenor & Suku Bunga</span>
+            <strong id="det_tenor_bunga" style="color: var(--secondary);">-</strong>
+          </div>
+          <div>
+            <span style="color: var(--text-muted); display: block; font-size: 0.76rem;">Total Cicilan Bulanan</span>
+            <strong id="det_cicilan_bulanan" style="color: var(--primary); font-size: 0.95rem;">-</strong>
+          </div>
+          <div>
+            <span style="color: var(--text-muted); display: block; font-size: 0.76rem;">Rincian Cicilan (Pokok + Bunga)</span>
+            <span id="det_rincian_angsuran_bln" style="font-weight: 600; color: var(--secondary);">-</span>
+          </div>
+          <div>
+            <span style="color: var(--text-muted); display: block; font-size: 0.76rem;">Total Kewajiban Pelunasan</span>
+            <span id="det_total_kewajiban" style="font-weight: 600; color: var(--secondary);">-</span>
+          </div>
+          <div>
+            <span style="color: var(--text-muted); display: block; font-size: 0.76rem;">Biaya Asuransi</span>
+            <span id="det_asuransi" style="font-weight: 600; color: var(--secondary);">-</span>
+          </div>
+          <div>
+            <span style="color: var(--text-muted); display: block; font-size: 0.76rem;">Keterangan</span>
+            <span id="det_keterangan" style="color: var(--text-main);">-</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Riwayat Angsuran Terdaftar -->
+      <div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+          <div style="font-weight: 700; color: var(--secondary); font-size: 0.88rem; display: flex; align-items: center; gap: 6px;">
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            Riwayat Pembayaran Angsuran
+          </div>
+          <span id="det_riwayat_count" class="badge badge-info" style="font-weight: 600; font-size: 0.75rem;">0 Pembayaran</span>
+        </div>
+
+        <div class="table-freeze-container" style="max-height: 240px; border: 1px solid var(--border-color); border-radius: var(--radius-sm);">
+          <table class="table" style="margin-bottom: 0; font-size: 0.82rem;">
+            <thead style="position: sticky; top: 0; z-index: 2; background: #f8fafc;">
+              <tr>
+                <th style="width: 50px; text-align: center;">Ke-</th>
+                <th>Tgl Bayar</th>
+                <th style="text-align: right;">Pokok</th>
+                <th style="text-align: right;">Jasa / Bunga</th>
+                <th style="text-align: right;">Total Bayar</th>
+                <th>Keterangan</th>
+                <th>Petugas</th>
+              </tr>
+            </thead>
+            <tbody id="det_riwayat_tbody">
+              <!-- Diisi oleh JS openDetailPinjaman -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer" style="padding: 14px 24px; border-top: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+      <button type="button" class="btn btn-outline" onclick="closeModal('modalDetailPinjaman')">Tutup</button>
+      <div id="det_action_buttons">
+        <!-- Tombol Aksi Dinamis -->
+      </div>
+    </div>
   </div>
 </div>
 
@@ -783,6 +967,89 @@ function openHapusPinjaman(id, noPinj, nama) {
   document.getElementById('hapus_pinjaman_no').textContent = noPinj;
   document.getElementById('hapus_pinjaman_nama').textContent = nama;
   openModal('modalHapusPinjaman');
+}
+
+// Data Store untuk Detail Rincian Pinjaman Portofolio
+const loanDataStore = <?= json_encode($loanDetailsJson, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
+
+// Buka Modal Detail Pinjaman & Riwayat Pembayaran Angsuran
+function openDetailPinjaman(id) {
+  const d = loanDataStore[id];
+  if (!d) return;
+
+  document.getElementById('det_no_pinjaman').textContent = d.no_pinjaman;
+  document.getElementById('det_nama_anggota').textContent = d.nama_anggota;
+  document.getElementById('det_no_anggota').textContent = d.no_anggota;
+
+  document.getElementById('det_plafon').textContent = d.jumlah_pinjaman;
+  document.getElementById('det_tgl_cair').textContent = d.tanggal_pencairan;
+  document.getElementById('det_pokok_terbayar').textContent = d.pokok_dibayar;
+  document.getElementById('det_kali_angsuran').textContent = d.kali_angsuran;
+  document.getElementById('det_tenor_bln').textContent = d.lama_bulan;
+  document.getElementById('det_sisa_pokok').textContent = d.sisa_pokok;
+
+  // Status Badge
+  const statusBadge = document.getElementById('det_status_badge');
+  if (d.is_lunas) {
+    statusBadge.className = 'badge badge-success';
+    statusBadge.textContent = 'LUNAS';
+  } else if (d.status === 'macet') {
+    statusBadge.className = 'badge badge-danger';
+    statusBadge.textContent = 'MACET';
+  } else {
+    statusBadge.className = 'badge badge-warning';
+    statusBadge.textContent = 'BERJALAN';
+  }
+
+  // Breakdown Info
+  document.getElementById('det_tenor_bunga').textContent = d.lama_bulan + ' (' + d.bunga_persen + ')';
+  document.getElementById('det_cicilan_bulanan').textContent = d.total_angsuran_bulanan;
+  document.getElementById('det_rincian_angsuran_bln').textContent = 'Pokok: ' + d.angsuran_pokok + ' | Jasa: ' + d.angsuran_bunga;
+  document.getElementById('det_total_kewajiban').textContent = d.total_harus_dibayar;
+  document.getElementById('det_asuransi').textContent = d.asuransi;
+  document.getElementById('det_keterangan').textContent = d.keterangan;
+
+  // Riwayat Pembayaran Table
+  const tbody = document.getElementById('det_riwayat_tbody');
+  const countBadge = document.getElementById('det_riwayat_count');
+  tbody.innerHTML = '';
+
+  if (d.riwayat && d.riwayat.length > 0) {
+    countBadge.textContent = d.riwayat.length + ' Pembayaran';
+    d.riwayat.forEach(item => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td style="text-align: center;"><span class="badge badge-info" style="font-weight: 700;">#${item.ke}</span></td>
+        <td style="white-space: nowrap;">${item.tanggal}</td>
+        <td style="text-align: right; font-weight: 600; white-space: nowrap;" class="text-green">${item.pokok}</td>
+        <td style="text-align: right; font-weight: 600; white-space: nowrap;" class="text-blue">${item.bunga}</td>
+        <td style="text-align: right; font-weight: 700; white-space: nowrap;">${item.total}</td>
+        <td style="font-size: 0.78rem; color: var(--text-muted);">${item.keterangan}</td>
+        <td style="font-size: 0.78rem; color: var(--text-subtle);">${item.petugas}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  } else {
+    countBadge.textContent = '0 Pembayaran';
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 24px; color: var(--text-subtle);">Belum ada riwayat pembayaran angsuran untuk pinjaman ini.</td></tr>';
+  }
+
+  // Tombol Aksi Dinamis
+  const actContainer = document.getElementById('det_action_buttons');
+  if (!d.is_lunas) {
+    actContainer.innerHTML = `
+      <a href="angsuran.php?pinjaman_id=${d.id}" class="btn btn-primary" style="padding: 7px 16px; font-size: 0.85rem; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
+        <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+        Bayar Angsuran Pinjaman Ini
+      </a>
+    `;
+  } else {
+    actContainer.innerHTML = `
+      <span class="badge badge-success" style="padding: 6px 12px; font-size: 0.82rem;">Pinjaman Sudah Lunas</span>
+    `;
+  }
+
+  openModal('modalDetailPinjaman');
 }
 </script>
 

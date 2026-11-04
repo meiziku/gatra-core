@@ -17,52 +17,6 @@ $activePage = $activePage ?? 'dashboard';
   <title><?= htmlspecialchars($pageTitle ?? 'Panel Admin') ?> - Gatra Teknika</title>
   <link rel="stylesheet" href="../assets/css/style.css?v=<?= filemtime(__DIR__ . '/../assets/css/style.css') ?>">
   <link rel="icon" type="image/png" href="../assets/img/logo.png">
-  <style>
-    /* Styling Submenu Accordion Sidebar */
-    .nav-dropdown {
-      position: relative;
-    }
-    .nav-dropdown.open .dropdown-chevron {
-      transform: rotate(180deg);
-    }
-    .nav-submenu {
-      display: none;
-      padding-left: 18px;
-      margin: 4px 0 6px 0;
-      flex-direction: column;
-      gap: 2px;
-    }
-    .nav-dropdown.open .nav-submenu {
-      display: flex;
-    }
-    .nav-sublink {
-      display: flex;
-      align-items: center;
-      padding: 7px 12px;
-      font-size: 0.82rem;
-      color: var(--secondary-muted, #64748b);
-      border-radius: var(--radius-sm, 6px);
-      text-decoration: none;
-      font-weight: 500;
-      transition: all 0.15s ease;
-    }
-    .nav-sublink:hover {
-      background-color: var(--bg-subtle, #f1f5f9);
-      color: var(--primary, #059669);
-    }
-    .nav-sublink.active {
-      background-color: var(--primary-light, #ecfdf5);
-      color: var(--primary, #059669);
-      font-weight: 700;
-      border-left: 3px solid var(--primary, #059669);
-    }
-  </style>
-  <script>
-    function toggleNavDropdown(id) {
-      const el = document.getElementById(id);
-      if (el) el.classList.toggle('open');
-    }
-  </script>
 </head>
 <body>
 
@@ -138,34 +92,35 @@ $activePage = $activePage ?? 'dashboard';
 
       <div class="nav-section-title">Laporan & Analisis</div>
 
-      <!-- Accordion Expand / Collapse: Laporan Koperasi -->
-      <div class="nav-dropdown <?= ($activePage === 'laporan') ? 'open' : '' ?>" id="laporanDropdown">
-        <a href="javascript:void(0)" class="nav-link nav-dropdown-toggle <?= ($activePage === 'laporan') ? 'active' : '' ?>" onclick="toggleNavDropdown('laporanDropdown')">
-          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-          <span style="flex-grow: 1;">Laporan Koperasi</span>
-          <svg class="dropdown-chevron" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="transition: transform 0.25s ease;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-        </a>
-        <div class="nav-submenu">
-          <a href="laporan.php?tab=simpanan_wajib" class="nav-sublink <?= ($activePage === 'laporan' && ($activeTab ?? ($tab ?? '')) === 'simpanan_wajib') ? 'active' : '' ?>">
-            <span>📄 Simpanan Wajib</span>
-          </a>
-          <a href="laporan.php?tab=simpanan_manasuka" class="nav-sublink <?= ($activePage === 'laporan' && ($activeTab ?? ($tab ?? '')) === 'simpanan_manasuka') ? 'active' : '' ?>">
-            <span>📑 Simpanan Manasuka</span>
-          </a>
-          <a href="laporan.php?tab=laporan_hasil_usaha" class="nav-sublink <?= ($activePage === 'laporan' && ($activeTab ?? ($tab ?? '')) === 'laporan_hasil_usaha') ? 'active' : '' ?>">
-            <span>📈 Laporan Hasil Usaha</span>
-          </a>
-          <a href="laporan.php?tab=neraca" class="nav-sublink <?= ($activePage === 'laporan' && ($activeTab ?? ($tab ?? '')) === 'neraca') ? 'active' : '' ?>">
-            <span>⚖️ Neraca</span>
-          </a>
-          <a href="laporan.php?tab=rekap_shu" class="nav-sublink <?= ($activePage === 'laporan' && ($activeTab ?? ($tab ?? '')) === 'rekap_shu') ? 'active' : '' ?>">
-            <span>📊 Rekap SHU</span>
-          </a>
-          <a href="laporan.php?tab=pembagian_shu" class="nav-sublink <?= ($activePage === 'laporan' && ($activeTab ?? ($tab ?? '')) === 'pembagian_shu') ? 'active' : '' ?>">
-            <span>🍰 Pembagian SHU</span>
-          </a>
-        </div>
-      </div>
+      <a href="laporan.php?tab=simpanan_wajib" class="nav-link <?= ($activePage === 'laporan' && ($activeTab ?? ($tab ?? '')) === 'simpanan_wajib') ? 'active' : '' ?>">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        <span>Simpanan Wajib</span>
+      </a>
+
+      <a href="laporan.php?tab=simpanan_manasuka" class="nav-link <?= ($activePage === 'laporan' && ($activeTab ?? ($tab ?? '')) === 'simpanan_manasuka') ? 'active' : '' ?>">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        <span>Simpanan Manasuka</span>
+      </a>
+
+      <a href="laporan.php?tab=laporan_hasil_usaha" class="nav-link <?= ($activePage === 'laporan' && ($activeTab ?? ($tab ?? '')) === 'laporan_hasil_usaha') ? 'active' : '' ?>">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/></svg>
+        <span>Laporan Hasil Usaha</span>
+      </a>
+
+      <a href="laporan.php?tab=neraca" class="nav-link <?= ($activePage === 'laporan' && ($activeTab ?? ($tab ?? '')) === 'neraca') ? 'active' : '' ?>">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"/></svg>
+        <span>Neraca</span>
+      </a>
+
+      <a href="laporan.php?tab=rekap_shu" class="nav-link <?= ($activePage === 'laporan' && ($activeTab ?? ($tab ?? '')) === 'rekap_shu') ? 'active' : '' ?>">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+        <span>Rekap SHU</span>
+      </a>
+
+      <a href="laporan.php?tab=pembagian_shu" class="nav-link <?= ($activePage === 'laporan' && ($activeTab ?? ($tab ?? '')) === 'pembagian_shu') ? 'active' : '' ?>">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"/></svg>
+        <span>Pembagian SHU</span>
+      </a>
 
       <div class="nav-section-title">Konfigurasi</div>
 
