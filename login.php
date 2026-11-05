@@ -94,23 +94,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
       <div class="form-group">
         <label for="password" class="form-label">Kata Sandi</label>
-        <input type="password" id="password" name="password" class="form-control" placeholder="Masukkan kata sandi" required>
-        <div style="display: flex; justify-content: flex-end; margin-top: 6px;">
-          <a href="#" onclick="alert('Silakan hubungi Administrator Koperasi untuk bantuan reset kata sandi.'); return false;" style="font-size: 0.78rem; color: var(--primary); text-decoration: none; font-weight: 500;">Lupa sandi?</a>
+        <div style="position: relative; display: flex; align-items: center;">
+          <input type="password" id="password" name="password" class="form-control" placeholder="Masukkan kata sandi" required style="padding-right: 42px;">
+          <button type="button" id="togglePasswordBtn" onclick="togglePasswordVisibility()" style="position: absolute; right: 10px; background: none; border: none; cursor: pointer; color: var(--text-muted); display: flex; align-items: center; justify-content: center; padding: 4px;" title="Lihat/Sembunyikan Kata Sandi">
+            <!-- Icon Eye Open -->
+            <svg id="eyeOpenIcon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+            <!-- Icon Eye Slashed / Closed -->
+            <svg id="eyeClosedIcon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display: none;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18"/></svg>
+          </button>
         </div>
       </div>
 
-      <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px; font-size: 0.95rem; margin-top: 10px;">
+      <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px; font-size: 0.95rem; margin-top: 14px;">
         <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/></svg>
         Masuk
       </button>
     </form>
-
-    <div style="margin-top: 28px; text-align: center; font-size: 0.78rem; color: var(--text-subtle);">
-      &copy; <?= date('Y') ?> Gatra Teknika &bull; Sistem Informasi Koperasi Simpan Pinjam
-    </div>
   </div>
 
   <script src="assets/js/main.js"></script>
+  <script>
+  function togglePasswordVisibility() {
+    const pwdInput = document.getElementById('password');
+    const eyeOpen = document.getElementById('eyeOpenIcon');
+    const eyeClosed = document.getElementById('eyeClosedIcon');
+    if (!pwdInput) return;
+    if (pwdInput.type === 'password') {
+      pwdInput.type = 'text';
+      if (eyeOpen) eyeOpen.style.display = 'none';
+      if (eyeClosed) eyeClosed.style.display = 'block';
+    } else {
+      pwdInput.type = 'password';
+      if (eyeOpen) eyeOpen.style.display = 'block';
+      if (eyeClosed) eyeClosed.style.display = 'none';
+    }
+  }
+  </script>
 </body>
 </html>

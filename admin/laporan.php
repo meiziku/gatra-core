@@ -171,6 +171,70 @@ if ($tab === 'simpanan_manasuka' || isset($_GET['export'])) {
     unset($sm);
 }
 
+// Preload Detail Mutasi Simpanan untuk Modal Detail Simpanan Anggota
+$simpananAnggotaStore = [];
+if ($tab === 'simpanan_wajib' || $tab === 'simpanan_manasuka') {
+    $stmtSimpDetail = $db->prepare("
+        SELECT s.id, s.anggota_id, s.jenis_simpanan, s.tanggal, s.tipe_transaksi, s.nominal, s.keterangan, s.petugas,
+               a.nama as nama_anggota, a.no_anggota, a.pekerjaan
+        FROM simpanan s
+        JOIN anggota a ON s.anggota_id = a.id
+        WHERE s.tanggal BETWEEN ? AND ?
+        ORDER BY s.tanggal ASC, s.id ASC
+    ");
+    $stmtSimpDetail->execute([$tglMulai, $tglSelesai]);
+    $allSimpRows = $stmtSimpDetail->fetchAll(PDO::FETCH_ASSOC);
+
+    $simpananWajibDetailMap = [];
+    $simpananManasukaDetailMap = [];
+    foreach ($allSimpRows as $sr) {
+        $aggId = (int)$sr['anggota_id'];
+        $item = [
+            'tanggal'    => date('d/m/Y', strtotime($sr['tanggal'])),
+            'tipe'       => $sr['tipe_transaksi'],
+            'nominal'    => rupiah($sr['nominal']),
+            'keterangan' => !empty($sr['keterangan']) ? $sr['keterangan'] : '-',
+            'petugas'    => !empty($sr['petugas']) ? $sr['petugas'] : '-'
+        ];
+        if ($sr['jenis_simpanan'] === 'wajib') {
+            $simpananWajibDetailMap[$aggId][] = $item;
+        } elseif (in_array($sr['jenis_simpanan'], ['sukarela', 'manasuka'])) {
+            $simpananManasukaDetailMap[$aggId][] = $item;
+        }
+    }
+
+    foreach ($dataSimpananWajib as $sw) {
+        $aggId = (int)$sw['id'];
+        $simpananAnggotaStore['wajib_' . $aggId] = [
+            'id'          => $aggId,
+            'nama'        => $sw['nama'],
+            'no_anggota'  => $sw['no_anggota'],
+            'pekerjaan'   => $sw['pekerjaan'] ?? '-',
+            'jenis_label' => 'Simpanan Wajib',
+            'saldo_awal'  => rupiah($sw['saldo_awal']),
+            'setor'       => rupiah($sw['setor_periode']),
+            'tarik'       => rupiah($sw['tarik_periode']),
+            'saldo_akhir' => rupiah($sw['saldo_akhir']),
+            'transaksi'   => $simpananWajibDetailMap[$aggId] ?? []
+        ];
+    }
+    foreach ($dataSimpananManasuka as $sm) {
+        $aggId = (int)$sm['id'];
+        $simpananAnggotaStore['manasuka_' . $aggId] = [
+            'id'          => $aggId,
+            'nama'        => $sm['nama'],
+            'no_anggota'  => $sm['no_anggota'],
+            'pekerjaan'   => $sm['pekerjaan'] ?? '-',
+            'jenis_label' => 'Simpanan Manasuka (Sukarela)',
+            'saldo_awal'  => rupiah($sm['saldo_awal']),
+            'setor'       => rupiah($sm['setor_periode']),
+            'tarik'       => rupiah($sm['tarik_periode']),
+            'saldo_akhir' => rupiah($sm['saldo_akhir']),
+            'transaksi'   => $simpananManasukaDetailMap[$aggId] ?? []
+        ];
+    }
+}
+
 // C. LAPORAN HASIL USAHA (LABA / RUGI) - BULANAN JANUARI S/D DESEMBER
 // Kategori diambil dari pengaturan.php?tab=labarugi, isi dihitung dari input transaksi
 $defaultLr = [
@@ -210,7 +274,15 @@ $lrConfig = $rawLr ? json_decode($rawLr, true) : $defaultLr;
 if (!is_array($lrConfig) || empty($lrConfig)) $lrConfig = $defaultLr;
 
 // Preload seluruh data angsuran dan buku_kas dalam 1 tahun buku
-$stmtAngsuranTahun = $db->prepare("SELECT tanggal_bayar, angsuran_bunga FROM angsuran WHERE tanggal_bayar BETWEEN ? AND ?");
+$stmtAngsuranTahun = $db->prepare("
+    SELECT a.tanggal_bayar, a.angsuran_bunga, a.angsuran_pokok, a.jumlah_bayar, a.angsuran_ke,
+           p.no_pinjaman, ag.nama as nama_anggota, ag.no_anggota, a.keterangan
+    FROM angsuran a
+    JOIN pinjaman p ON a.pinjaman_id = p.id
+    JOIN anggota ag ON p.anggota_id = ag.id
+    WHERE a.tanggal_bayar BETWEEN ? AND ?
+    ORDER BY a.tanggal_bayar ASC, a.id ASC
+");
 $stmtAngsuranTahun->execute(["$tahunBuku-01-01", "$tahunBuku-12-31"]);
 $rowsAngsuranTahun = $stmtAngsuranTahun->fetchAll(PDO::FETCH_ASSOC);
 
@@ -220,14 +292,20 @@ foreach ($rowsAngsuranTahun as $ra) {
     $bungaAngsuranPerBulan[$m] += (float)$ra['angsuran_bunga'];
 }
 
-$stmtBKTahun = $db->prepare("SELECT tanggal, kategori, jenis_transaksi, kas_masuk, kas_keluar FROM buku_kas WHERE tanggal BETWEEN ? AND ?");
+$stmtBKTahun = $db->prepare("
+    SELECT id, tipe_kas, tanggal, no_bukti, keterangan, kategori, jenis_transaksi, kas_masuk, kas_keluar, petugas 
+    FROM buku_kas 
+    WHERE tanggal BETWEEN ? AND ?
+    ORDER BY tanggal ASC, id ASC
+");
 $stmtBKTahun->execute(["$tahunBuku-01-01", "$tahunBuku-12-31"]);
 $rowsBKTahun = $stmtBKTahun->fetchAll(PDO::FETCH_ASSOC);
 
-// Hitung data Pendapatan Bulanan
+// Hitung data Pendapatan Bulanan & Rincian Transaksi
 $listPendapatanBulanan = [];
 $subtotalPendBln = array_fill(1, 12, 0.0);
 $totalHasilPendapatan = 0;
+$lrDetailStore = [];
 
 foreach ($lrConfig['pendapatan'] ?? [] as $p) {
     $kode = trim($p['kode'] ?? '');
@@ -235,11 +313,24 @@ foreach ($lrConfig['pendapatan'] ?? [] as $p) {
     if ($kode === '' && $nama === '') continue;
 
     $blnData = array_fill(1, 12, 0.0);
+    $txItems = [];
 
     // Jika Pendapatan Bunga Pinjaman (A.1), akumulasikan angsuran bunga
     if ($kode === 'A.1' || stripos($nama, 'bunga pinjaman') !== false) {
         for ($m = 1; $m <= 12; $m++) {
             $blnData[$m] += $bungaAngsuranPerBulan[$m];
+        }
+        foreach ($rowsAngsuranTahun as $ra) {
+            if ((float)$ra['angsuran_bunga'] > 0) {
+                $txItems[] = [
+                    'tanggal' => date('d/m/Y', strtotime($ra['tanggal_bayar'])),
+                    'sumber' => 'Angsuran SP',
+                    'no_bukti' => $ra['no_pinjaman'] . ' (Ke-' . $ra['angsuran_ke'] . ')',
+                    'keterangan' => $ra['nama_anggota'] . ' (' . $ra['no_anggota'] . ')' . ($ra['keterangan'] ? ' - ' . $ra['keterangan'] : ''),
+                    'nominal' => rupiah($ra['angsuran_bunga']),
+                    'nominal_raw' => (float)$ra['angsuran_bunga']
+                ];
+            }
         }
     }
 
@@ -248,7 +339,25 @@ foreach ($lrConfig['pendapatan'] ?? [] as $p) {
         $kat = $bk['kategori'];
         if ((strpos($kat, "[$kode]") !== false) || (stripos($kat, $nama) !== false)) {
             $m = (int)date('n', strtotime($bk['tanggal']));
-            $blnData[$m] += (float)$bk['kas_masuk'];
+            $masuk = (float)$bk['kas_masuk'];
+            $blnData[$m] += $masuk;
+            if ($masuk > 0) {
+                $sumber = match($bk['tipe_kas']) {
+                    'kas_umum' => 'Kas Umum',
+                    'kas_bank' => 'Kas Bank',
+                    'kas_toko' => 'Kas Toko',
+                    'kas_sp' => 'Kas SP',
+                    default => 'Buku Kas'
+                };
+                $txItems[] = [
+                    'tanggal' => date('d/m/Y', strtotime($bk['tanggal'])),
+                    'sumber' => $sumber,
+                    'no_bukti' => $bk['no_bukti'] ?: '-',
+                    'keterangan' => $bk['keterangan'] ?: '-',
+                    'nominal' => rupiah($masuk),
+                    'nominal_raw' => $masuk
+                ];
+            }
         }
     }
 
@@ -264,9 +373,17 @@ foreach ($lrConfig['pendapatan'] ?? [] as $p) {
         'bln'   => $blnData,
         'total' => $totAkun
     ];
+
+    $lrDetailStore[$kode] = [
+        'kode' => $kode,
+        'nama' => $nama,
+        'jenis' => 'Pendapatan',
+        'total' => rupiah($totAkun),
+        'transaksi' => $txItems
+    ];
 }
 
-// Hitung data Beban Bulanan
+// Hitung data Beban Bulanan & Rincian Transaksi
 $listPengeluaranBulanan = [];
 $subtotalBebanBln = array_fill(1, 12, 0.0);
 $totalHasilPengeluaran = 0;
@@ -277,12 +394,31 @@ foreach ($lrConfig['pengeluaran'] ?? [] as $p) {
     if ($kode === '' && $nama === '') continue;
 
     $blnData = array_fill(1, 12, 0.0);
+    $txItems = [];
 
     foreach ($rowsBKTahun as $bk) {
         $kat = $bk['kategori'];
         if ((strpos($kat, "[$kode]") !== false) || (stripos($kat, $nama) !== false)) {
             $m = (int)date('n', strtotime($bk['tanggal']));
-            $blnData[$m] += (float)$bk['kas_keluar'];
+            $keluar = (float)$bk['kas_keluar'];
+            $blnData[$m] += $keluar;
+            if ($keluar > 0) {
+                $sumber = match($bk['tipe_kas']) {
+                    'kas_umum' => 'Kas Umum',
+                    'kas_bank' => 'Kas Bank',
+                    'kas_toko' => 'Kas Toko',
+                    'kas_sp' => 'Kas SP',
+                    default => 'Buku Kas'
+                };
+                $txItems[] = [
+                    'tanggal' => date('d/m/Y', strtotime($bk['tanggal'])),
+                    'sumber' => $sumber,
+                    'no_bukti' => $bk['no_bukti'] ?: '-',
+                    'keterangan' => $bk['keterangan'] ?: '-',
+                    'nominal' => rupiah($keluar),
+                    'nominal_raw' => $keluar
+                ];
+            }
         }
     }
 
@@ -297,6 +433,14 @@ foreach ($lrConfig['pengeluaran'] ?? [] as $p) {
         'nama'  => $nama,
         'bln'   => $blnData,
         'total' => $totAkun
+    ];
+
+    $lrDetailStore[$kode] = [
+        'kode' => $kode,
+        'nama' => $nama,
+        'jenis' => 'Beban Operasional & Usaha',
+        'total' => rupiah($totAkun),
+        'transaksi' => $txItems
     ];
 }
 
@@ -435,9 +579,23 @@ foreach ($neracaConfig as $grpKey => $grp) {
             }
         } elseif ($grpKey === 'B4') {
             if ($kode === 'B.4.2' || strpos($namaLower, 'tahun berjalan') !== false) {
-                $saldoReal = $shuTahunBerjalan;
+                // SHU Tahun Berjalan: Laporan Hasil Usaha + input transaksi buku_kas kategori SHU Tahun Berjalan
+                $mutasiSHUBrjl = (float)$db->query("
+                    SELECT COALESCE(SUM(kas_masuk - kas_keluar), 0) 
+                    FROM buku_kas 
+                    WHERE (kategori LIKE '%[B.4.2]%' OR kategori LIKE '%Tahun Berjalan%') 
+                      AND tanggal <= '$tglSelesai'
+                ")->fetchColumn();
+                $saldoReal = $saldoAwal + $shuTahunBerjalan + $mutasiSHUBrjl;
             } else {
-                $saldoReal = $saldoAwal;
+                // SHU Tahun Sebelumnya: Saldo Awal + input transaksi buku_kas kategori SHU Tahun Sebelumnya
+                $mutasiSHUSblm = (float)$db->query("
+                    SELECT COALESCE(SUM(kas_masuk - kas_keluar), 0) 
+                    FROM buku_kas 
+                    WHERE (kategori LIKE '%[B.4.1]%' OR kategori LIKE '%Tahun Sebelumnya%') 
+                      AND tanggal <= '$tglSelesai'
+                ")->fetchColumn();
+                $saldoReal = $saldoAwal + $mutasiSHUSblm;
             }
         }
 
@@ -761,6 +919,29 @@ include __DIR__ . '/header.php';
   </p>
 </div>
 
+<style>
+.simpanan-row-clickable {
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+.simpanan-row-clickable:hover {
+  background-color: #f1f5f9 !important;
+}
+.simpanan-row-clickable:hover td {
+  background-color: #f1f5f9 !important;
+}
+.lr-row-clickable {
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+.lr-row-clickable:hover {
+  background-color: #f1f5f9 !important;
+}
+.lr-row-clickable:hover td {
+  background-color: #f1f5f9 !important;
+}
+</style>
+
 <!-- Card Filter Parameter Periode (No-Print) -->
 <div class="card no-print" style="margin-bottom: 24px;">
   <div class="card-header" style="padding: 12px 20px;">
@@ -884,7 +1065,7 @@ include __DIR__ . '/header.php';
             <tr><td colspan="8" style="text-align:center; padding: 36px; color: var(--text-subtle);">Belum ada data simpanan wajib anggota.</td></tr>
           <?php else: ?>
             <?php $no = 1; foreach ($dataSimpananWajib as $sw): ?>
-              <tr>
+              <tr class="simpanan-row-clickable" onclick="openDetailSimpanan('wajib_<?= $sw['id'] ?>')" style="cursor: pointer;" title="Klik untuk melihat detail pembayaran simpanan wajib <?= htmlspecialchars($sw['nama']) ?> tahun <?= $tahunBuku ?>">
                 <td><?= $no++ ?></td>
                 <td><strong><?= htmlspecialchars($sw['no_anggota']) ?></strong></td>
                 <td>
@@ -986,7 +1167,7 @@ include __DIR__ . '/header.php';
             <tr><td colspan="8" style="text-align:center; padding: 36px; color: var(--text-subtle);">Belum ada data simpanan manasuka anggota.</td></tr>
           <?php else: ?>
             <?php $no = 1; foreach ($dataSimpananManasuka as $sm): ?>
-              <tr>
+              <tr class="simpanan-row-clickable" onclick="openDetailSimpanan('manasuka_<?= $sm['id'] ?>')" style="cursor: pointer;" title="Klik untuk melihat detail pembayaran simpanan manasuka <?= htmlspecialchars($sm['nama']) ?> tahun <?= $tahunBuku ?>">
                 <td><?= $no++ ?></td>
                 <td><strong><?= htmlspecialchars($sm['no_anggota']) ?></strong></td>
                 <td>
@@ -1092,11 +1273,11 @@ include __DIR__ . '/header.php';
             </td>
           </tr>
           <?php foreach ($listPendapatanBulanan as $p): ?>
-            <tr>
-              <td style="position: sticky; left: 0; background: #fff; z-index: 1;">
+            <tr class="lr-row-clickable" onclick="openDetailLabaRugi('<?= $p['kode'] ?>')" style="cursor: pointer;" title="Klik untuk melihat rincian transaksi pendapatan <?= htmlspecialchars($p['nama']) ?> tahun <?= $tahunBuku ?>">
+              <td style="position: sticky; left: 0; background: inherit; z-index: 1;">
                 <span class="badge badge-success" style="font-size: 0.72rem;"><?= htmlspecialchars($p['kode']) ?></span>
               </td>
-              <td style="position: sticky; left: 70px; background: #fff; z-index: 1; font-weight: 600; color: var(--text-main); box-shadow: 2px 0 4px -2px rgba(0,0,0,0.1);">
+              <td style="position: sticky; left: 70px; background: inherit; z-index: 1; font-weight: 600; color: var(--text-main); box-shadow: 2px 0 4px -2px rgba(0,0,0,0.1);">
                 <?= htmlspecialchars($p['nama']) ?>
               </td>
               <?php for ($m = 1; $m <= 12; $m++): 
@@ -1134,11 +1315,11 @@ include __DIR__ . '/header.php';
             </td>
           </tr>
           <?php foreach ($listPengeluaranBulanan as $p): ?>
-            <tr>
-              <td style="position: sticky; left: 0; background: #fff; z-index: 1;">
+            <tr class="lr-row-clickable" onclick="openDetailLabaRugi('<?= $p['kode'] ?>')" style="cursor: pointer;" title="Klik untuk melihat rincian transaksi beban <?= htmlspecialchars($p['nama']) ?> tahun <?= $tahunBuku ?>">
+              <td style="position: sticky; left: 0; background: inherit; z-index: 1;">
                 <span class="badge badge-danger" style="font-size: 0.72rem;"><?= htmlspecialchars($p['kode']) ?></span>
               </td>
-              <td style="position: sticky; left: 70px; background: #fff; z-index: 1; font-weight: 500; color: var(--text-main); box-shadow: 2px 0 4px -2px rgba(0,0,0,0.1);">
+              <td style="position: sticky; left: 70px; background: inherit; z-index: 1; font-weight: 500; color: var(--text-main); box-shadow: 2px 0 4px -2px rgba(0,0,0,0.1);">
                 <?= htmlspecialchars($p['nama']) ?>
               </td>
               <?php for ($m = 1; $m <= 12; $m++): 
@@ -1307,7 +1488,7 @@ include __DIR__ . '/header.php';
                   <td>
                     <?= htmlspecialchars($it['nama']) ?>
                     <?php if ($it['kode'] === 'B.4.2'): ?>
-                      <small style="color: var(--text-muted); display: block;">(Otomatis dari Laporan Hasil Usaha)</small>
+                      <small style="color: var(--text-muted); display: block;">(Laporan Hasil Usaha + Mutasi Kas Berjalan)</small>
                     <?php endif; ?>
                   </td>
                   <td class="table-amount" style="font-weight: 600;">
@@ -1663,6 +1844,159 @@ include __DIR__ . '/header.php';
 
 <?php endif; ?>
 
+<!-- Modal Detail Riwayat Simpanan Anggota -->
+<div class="modal-overlay" id="modalDetailSimpananAnggota">
+  <div class="modal-card" style="max-width: 840px; width: 95%;">
+    <div class="modal-header" style="border-bottom: 1px solid var(--border-color); padding: 18px 24px;">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <div style="width: 38px; height: 38px; border-radius: 8px; background: #ecfdf5; color: var(--primary); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+          <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        </div>
+        <div>
+          <h3 id="det_simp_title" style="margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--secondary);">Detail Pembayaran Simpanan</h3>
+          <div style="font-size: 0.82rem; color: var(--text-muted); margin-top: 2px;">
+            Anggota: <strong id="det_simp_nama" style="color: var(--secondary);">-</strong> &bull; 
+            No. Anggota: <span id="det_simp_no" class="badge badge-info" style="font-weight: 700; font-size: 0.78rem;">-</span> &bull; 
+            Pekerjaan: <span id="det_simp_pekerjaan">-</span> &bull;
+            Tahun Buku: <strong><?= $tahunBuku ?></strong>
+          </div>
+        </div>
+      </div>
+      <button type="button" class="modal-close-btn" onclick="closeModal('modalDetailSimpananAnggota')">&times;</button>
+    </div>
+
+    <div class="modal-body" style="padding: 20px 24px; max-height: calc(85vh - 130px); overflow-y: auto;">
+      <!-- 4 Kartu Metrik Ringkasan Saldo -->
+      <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px;">
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: var(--radius-sm); padding: 12px 14px;">
+          <div style="font-size: 0.72rem; text-transform: uppercase; font-weight: 600; color: var(--text-muted);">Saldo Awal</div>
+          <div id="det_simp_saldo_awal" style="font-size: 1.15rem; font-weight: 800; color: var(--secondary); margin-top: 4px; white-space: nowrap;">Rp 0</div>
+          <div style="font-size: 0.72rem; color: var(--text-subtle); margin-top: 2px;">Sebelum <?= tgl_dmy($tglMulai) ?></div>
+        </div>
+        <div style="background: #ecfdf5; border: 1px solid #bbf7d0; border-radius: var(--radius-sm); padding: 12px 14px;">
+          <div style="font-size: 0.72rem; text-transform: uppercase; font-weight: 600; color: #166534;">Setoran Masuk</div>
+          <div id="det_simp_setor" style="font-size: 1.15rem; font-weight: 800; color: #15803d; margin-top: 4px; white-space: nowrap;">Rp 0</div>
+          <div style="font-size: 0.72rem; color: #166534; margin-top: 2px;">Tahun <?= $tahunBuku ?></div>
+        </div>
+        <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: var(--radius-sm); padding: 12px 14px;">
+          <div style="font-size: 0.72rem; text-transform: uppercase; font-weight: 600; color: #991b1b;">Penarikan</div>
+          <div id="det_simp_tarik" style="font-size: 1.15rem; font-weight: 800; color: #b91c1c; margin-top: 4px; white-space: nowrap;">Rp 0</div>
+          <div style="font-size: 0.72rem; color: #991b1b; margin-top: 2px;">Tahun <?= $tahunBuku ?></div>
+        </div>
+        <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: var(--radius-sm); padding: 12px 14px;">
+          <div style="font-size: 0.72rem; text-transform: uppercase; font-weight: 600; color: #1e40af;">Saldo Akhir</div>
+          <div id="det_simp_saldo_akhir" style="font-size: 1.15rem; font-weight: 800; color: #1d4ed8; margin-top: 4px; white-space: nowrap;">Rp 0</div>
+          <div style="font-size: 0.72rem; color: #1e40af; margin-top: 2px;">Per <?= tgl_dmy($tglSelesai) ?></div>
+        </div>
+      </div>
+
+      <!-- Riwayat Transaksi -->
+      <div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+          <div style="font-weight: 700; color: var(--secondary); font-size: 0.88rem; display: flex; align-items: center; gap: 6px;">
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            Rincian Pembayaran / Mutasi Transaksi (Tahun <?= $tahunBuku ?>)
+          </div>
+          <span id="det_simp_tx_count" class="badge badge-info" style="font-weight: 600; font-size: 0.75rem;">0 Transaksi</span>
+        </div>
+
+        <div class="table-freeze-container" style="max-height: 280px; border: 1px solid var(--border-color); border-radius: var(--radius-sm);">
+          <table class="table" style="margin-bottom: 0; font-size: 0.83rem; width: 100%;">
+            <thead style="position: sticky; top: 0; z-index: 2; background: #f8fafc;">
+              <tr>
+                <th style="width: 50px; text-align: center;">No</th>
+                <th style="width: 120px;">Tanggal</th>
+                <th style="width: 110px; text-align: center;">Tipe</th>
+                <th style="text-align: right; width: 150px;">Nominal (Rp)</th>
+                <th>Keterangan</th>
+                <th style="width: 130px;">Petugas</th>
+              </tr>
+            </thead>
+            <tbody id="det_simp_tx_tbody">
+              <!-- Rendered via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer" style="padding: 14px 24px; border-top: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+      <button type="button" class="btn btn-outline" onclick="closeModal('modalDetailSimpananAnggota')">Tutup</button>
+      <a id="det_simp_link_kelola" href="simpanan.php" class="btn btn-primary" style="padding: 7px 16px; font-size: 0.85rem; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
+        <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+        Kelola Simpanan Anggota
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Detail Rincian Akun Laporan Hasil Usaha -->
+<div class="modal-overlay" id="modalDetailLabaRugi">
+  <div class="modal-card" style="max-width: 860px; width: 95%;">
+    <div class="modal-header" style="border-bottom: 1px solid var(--border-color); padding: 18px 24px;">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <div style="width: 38px; height: 38px; border-radius: 8px; background: #eff6ff; color: #1e40af; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+          <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+        </div>
+        <div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span id="det_lr_kode" class="badge badge-primary" style="font-weight: 700; font-size: 0.8rem;">-</span>
+            <h3 id="det_lr_nama" style="margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--secondary);">-</h3>
+          </div>
+          <div style="font-size: 0.82rem; color: var(--text-muted); margin-top: 2px;">
+            Klasifikasi: <strong id="det_lr_jenis">-</strong> &bull; 
+            Tahun Buku: <strong><?= $tahunBuku ?></strong> (Periode: <?= tgl_dmy($tglMulai) ?> s/d <?= tgl_dmy($tglSelesai) ?>)
+          </div>
+        </div>
+      </div>
+      <button type="button" class="modal-close-btn" onclick="closeModal('modalDetailLabaRugi')">&times;</button>
+    </div>
+
+    <div class="modal-body" style="padding: 20px 24px; max-height: calc(85vh - 130px); overflow-y: auto;">
+      <!-- Kartu Total Realisasi Akun -->
+      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: var(--radius-sm); padding: 14px 18px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+        <div>
+          <div style="font-size: 0.75rem; text-transform: uppercase; font-weight: 600; color: var(--text-muted);">Total Realisasi Akun Tahun <?= $tahunBuku ?></div>
+          <div id="det_lr_total" style="font-size: 1.4rem; font-weight: 800; margin-top: 2px; white-space: nowrap;">Rp 0</div>
+        </div>
+        <div style="text-align: right;">
+          <span id="det_lr_tx_count" class="badge badge-info" style="font-weight: 600; font-size: 0.8rem; padding: 6px 12px;">0 Transaksi Riil</span>
+        </div>
+      </div>
+
+      <!-- Tabel Transaksi Riil Pembentuk Akun -->
+      <div>
+        <div style="font-weight: 700; color: var(--secondary); font-size: 0.88rem; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+          Daftar Rincian Transaksi Pembentuk (Tahun <?= $tahunBuku ?>)
+        </div>
+
+        <div class="table-freeze-container" style="max-height: 320px; border: 1px solid var(--border-color); border-radius: var(--radius-sm);">
+          <table class="table" style="margin-bottom: 0; font-size: 0.83rem; width: 100%;">
+            <thead style="position: sticky; top: 0; z-index: 2; background: #f8fafc;">
+              <tr>
+                <th style="width: 50px; text-align: center;">No</th>
+                <th style="width: 110px;">Tanggal</th>
+                <th style="width: 140px;">Sumber / Kas</th>
+                <th style="width: 150px;">No. Bukti / Ref</th>
+                <th>Keterangan Transaksi</th>
+                <th style="text-align: right; width: 150px;">Nominal (Rp)</th>
+              </tr>
+            </thead>
+            <tbody id="det_lr_tx_tbody">
+              <!-- Rendered via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer" style="padding: 14px 24px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end;">
+      <button type="button" class="btn btn-outline" onclick="closeModal('modalDetailLabaRugi')">Tutup</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // Filter tabel pencarian cepat
 document.addEventListener('DOMContentLoaded', function() {
@@ -1747,6 +2081,105 @@ function initRekapShuSpreadsheetSort() {
       });
     });
   });
+}
+
+// Data Stores untuk Modal Detail Simpanan & Laba Rugi
+const simpananAnggotaStore = <?= json_encode($simpananAnggotaStore ?? [], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
+const lrDetailStore = <?= json_encode($lrDetailStore ?? [], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
+
+function openDetailSimpanan(key) {
+  const d = simpananAnggotaStore[key];
+  if (!d) return;
+
+  document.getElementById('det_simp_title').textContent = 'Detail Pembayaran ' + d.jenis_label;
+  document.getElementById('det_simp_nama').textContent = d.nama;
+  document.getElementById('det_simp_no').textContent = d.no_anggota;
+  document.getElementById('det_simp_pekerjaan').textContent = d.pekerjaan;
+
+  document.getElementById('det_simp_saldo_awal').textContent = d.saldo_awal;
+  document.getElementById('det_simp_setor').textContent = d.setor;
+  document.getElementById('det_simp_tarik').textContent = d.tarik;
+  document.getElementById('det_simp_saldo_akhir').textContent = d.saldo_akhir;
+
+  const tbody = document.getElementById('det_simp_tx_tbody');
+  const countBadge = document.getElementById('det_simp_tx_count');
+  tbody.innerHTML = '';
+
+  if (d.transaksi && d.transaksi.length > 0) {
+    countBadge.textContent = d.transaksi.length + ' Transaksi';
+    d.transaksi.forEach((tx, idx) => {
+      const isSetor = tx.tipe === 'setor';
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td style="text-align: center;">${idx + 1}</td>
+        <td style="white-space: nowrap;">${tx.tanggal}</td>
+        <td style="text-align: center;">
+          <span class="badge ${isSetor ? 'badge-success' : 'badge-danger'}" style="font-size: 0.72rem; text-transform: uppercase;">
+            ${tx.tipe}
+          </span>
+        </td>
+        <td style="text-align: right; font-weight: 700; white-space: nowrap;" class="${isSetor ? 'text-green' : 'text-red'}">
+          ${isSetor ? '+' : '-'} ${tx.nominal}
+        </td>
+        <td style="color: var(--text-main);">${tx.keterangan}</td>
+        <td style="color: var(--text-muted); font-size: 0.78rem;">${tx.petugas}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  } else {
+    countBadge.textContent = '0 Transaksi';
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 24px; color: var(--text-subtle);">Belum ada catatan mutasi transaksi pada tahun buku ini.</td></tr>';
+  }
+
+  const linkKelola = document.getElementById('det_simp_link_kelola');
+  if (linkKelola) {
+    linkKelola.href = 'simpanan.php?cari=' + encodeURIComponent(d.no_anggota);
+  }
+
+  openModal('modalDetailSimpananAnggota');
+}
+
+function openDetailLabaRugi(kode) {
+  const d = lrDetailStore[kode];
+  if (!d) return;
+
+  document.getElementById('det_lr_kode').textContent = d.kode;
+  document.getElementById('det_lr_nama').textContent = d.nama;
+  document.getElementById('det_lr_jenis').textContent = d.jenis;
+  document.getElementById('det_lr_total').textContent = d.total;
+
+  const isPendapatan = d.jenis === 'Pendapatan';
+  const totalEl = document.getElementById('det_lr_total');
+  if (totalEl) {
+    totalEl.className = isPendapatan ? 'text-green' : 'text-red';
+  }
+
+  const tbody = document.getElementById('det_lr_tx_tbody');
+  const countBadge = document.getElementById('det_lr_tx_count');
+  tbody.innerHTML = '';
+
+  if (d.transaksi && d.transaksi.length > 0) {
+    countBadge.textContent = d.transaksi.length + ' Transaksi Riil';
+    d.transaksi.forEach((tx, idx) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td style="text-align: center;">${idx + 1}</td>
+        <td style="white-space: nowrap;">${tx.tanggal}</td>
+        <td style="white-space: nowrap;"><span class="badge badge-info" style="font-size: 0.72rem;">${tx.sumber}</span></td>
+        <td style="white-space: nowrap; font-weight: 600;">${tx.no_bukti}</td>
+        <td style="color: var(--text-main);">${tx.keterangan}</td>
+        <td style="text-align: right; font-weight: 700; white-space: nowrap;" class="${isPendapatan ? 'text-green' : 'text-red'}">
+          ${tx.nominal}
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  } else {
+    countBadge.textContent = '0 Transaksi Riil';
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 24px; color: var(--text-subtle);">Belum ada transaksi riil yang tercatat untuk akun ini pada tahun buku ini.</td></tr>';
+  }
+
+  openModal('modalDetailLabaRugi');
 }
 </script>
 
