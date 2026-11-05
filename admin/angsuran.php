@@ -171,6 +171,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 $pinjamanBerjalan = $db->query("
     SELECT p.*, a.nama as nama_anggota, a.no_anggota,
            COALESCE(SUM(ag.jumlah_bayar), 0) as total_dibayar,
+           COALESCE(SUM(ag.angsuran_pokok), 0) as pokok_dibayar,
            COUNT(ag.id) as kali_angsuran
     FROM pinjaman p
     JOIN anggota a ON p.anggota_id = a.id
@@ -261,9 +262,9 @@ require_once __DIR__ . '/header.php';
           <div id="pinjamanDropdownTrigger" class="form-control" style="cursor: pointer; display: flex; align-items: center; justify-content: space-between; min-height: 42px; padding: 8px 12px; background: #fff; user-select: none;">
             <span id="pinjamanTriggerText" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; <?= $selectedPinjaman ? 'font-weight: 600; color: var(--secondary);' : 'color: var(--text-muted);' ?>">
               <?php if ($selectedPinjaman): 
-                $sisaSel = $selectedPinjaman['total_harus_dibayar'] - $selectedPinjaman['total_dibayar'];
+                $sisaSelPokok = max(0, (float)$selectedPinjaman['jumlah_pinjaman'] - (float)$selectedPinjaman['pokok_dibayar']);
               ?>
-                <?= htmlspecialchars($selectedPinjaman['no_pinjaman']) ?> - <?= htmlspecialchars($selectedPinjaman['nama_anggota']) ?> (Sisa: <?= rupiah($sisaSel) ?>)
+                <?= htmlspecialchars($selectedPinjaman['no_pinjaman']) ?> - <?= htmlspecialchars($selectedPinjaman['nama_anggota']) ?> (Sisa Pokok: <?= rupiah($sisaSelPokok) ?>)
               <?php else: ?>
                 -- Klik untuk Memilih Pinjaman --
               <?php endif; ?>
@@ -287,7 +288,7 @@ require_once __DIR__ . '/header.php';
                 &larr; Batalkan Pilihan Pinjaman
               </div>
               <?php foreach ($pinjamanBerjalan as $pb): 
-                $sisa = $pb['total_harus_dibayar'] - $pb['total_dibayar'];
+                $sisaPokokItem = max(0, (float)$pb['jumlah_pinjaman'] - (float)$pb['pokok_dibayar']);
                 $isSelected = ($selectedPinjamanId === $pb['id']);
                 $searchKeyword = strtolower($pb['no_pinjaman'] . ' ' . $pb['nama_anggota'] . ' ' . $pb['no_anggota']);
               ?>
@@ -299,13 +300,13 @@ require_once __DIR__ . '/header.php';
                     <span style="font-weight: 700; color: var(--secondary); font-size: 0.88rem;">
                       <?= htmlspecialchars($pb['no_pinjaman']) ?> - <?= htmlspecialchars($pb['nama_anggota']) ?>
                     </span>
-                    <span class="badge <?= $isSelected ? 'badge-primary' : 'badge-info' ?>" style="font-size: 0.72rem; white-space: nowrap;">
-                      Bulan ke-<?= $pb['kali_angsuran'] + 1 ?> dari <?= $pb['lama_bulan'] ?>
+                    <span class="badge <?= $isSelected ? 'badge-primary' : 'badge-info' ?>" style="font-size: 0.76rem; font-weight: 700; white-space: nowrap;">
+                      <?= $pb['kali_angsuran'] + 1 ?>/<?= $pb['lama_bulan'] ?>
                     </span>
                   </div>
                   <div style="display: flex; justify-content: space-between; font-size: 0.76rem; color: var(--text-muted); margin-top: 4px;">
                     <span>No. Angg: <strong><?= htmlspecialchars($pb['no_anggota']) ?></strong> &bull; Plafon: <?= rupiah($pb['jumlah_pinjaman']) ?></span>
-                    <span>Sisa: <strong style="color: #dc2626;"><?= rupiah($sisa) ?></strong></span>
+                    <span>Sisa Pokok: <strong style="color: #dc2626;"><?= rupiah($sisaPokokItem) ?></strong></span>
                   </div>
                   <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--primary); margin-top: 2px;">
                     <span>Cicilan: <strong><?= rupiah($pb['total_angsuran_bulanan']) ?></strong> / bln</span>
@@ -323,7 +324,7 @@ require_once __DIR__ . '/header.php';
 
         <?php if ($selectedPinjaman): 
           $nextAngsuran = $selectedPinjaman['kali_angsuran'] + 1;
-          $sisa = $selectedPinjaman['total_harus_dibayar'] - $selectedPinjaman['total_dibayar'];
+          $sisaPokokSel = max(0, (float)$selectedPinjaman['jumlah_pinjaman'] - (float)$selectedPinjaman['pokok_dibayar']);
           $totalAngsuranBulanan = round($selectedPinjaman['total_angsuran_bulanan']);
           $formattedNominal = number_format($totalAngsuranBulanan, 0, ',', '.');
         ?>
@@ -331,7 +332,7 @@ require_once __DIR__ . '/header.php';
             <div style="font-weight: 700; color: var(--primary-dark); margin-bottom: 6px;">Detail Pinjaman Terpilih:</div>
             <div>Plafon: <strong><?= rupiah($selectedPinjaman['jumlah_pinjaman']) ?></strong></div>
             <div>Tenor: <strong><?= $selectedPinjaman['lama_bulan'] ?> Bulan</strong> (Terbayar: <?= $selectedPinjaman['kali_angsuran'] ?>x)</div>
-            <div>Sisa Tagihan: <strong class="text-red"><?= rupiah($sisa) ?></strong></div>
+            <div>Sisa Pokok: <strong class="text-red"><?= rupiah($sisaPokokSel) ?></strong></div>
           </div>
 
           <input type="hidden" name="angsuran_ke" value="<?= $nextAngsuran ?>">
@@ -535,8 +536,8 @@ require_once __DIR__ . '/header.php';
               <th>Anggota</th>
               <th style="width: 180px;">Plafon & Tenor</th>
               <th style="width: 170px;">Cicilan / Bln</th>
-              <th style="width: 140px; text-align: right;">Sisa Tagihan</th>
-              <th style="width: 140px; text-align: center;">Status Angsuran</th>
+              <th style="width: 140px; text-align: right;">Sisa Pokok</th>
+              <th style="width: 100px; text-align: center;">Status</th>
             </tr>
           </thead>
           <tbody>
@@ -544,7 +545,8 @@ require_once __DIR__ . '/header.php';
               <tr><td colspan="6" style="text-align: center; padding: 28px; color: var(--text-subtle);">Tidak ada pinjaman berjalan yang aktif.</td></tr>
             <?php else: ?>
               <?php foreach ($pinjamanBerjalan as $pb): 
-                $sisaPB = $pb['total_harus_dibayar'] - $pb['total_dibayar'];
+                $sisaPokokPB = max(0, (float)$pb['jumlah_pinjaman'] - (float)$pb['pokok_dibayar']);
+                $angsuranKe = (int)$pb['kali_angsuran'] + 1;
               ?>
                 <tr class="loan-modal-row-clickable" onclick="window.location.href='angsuran.php?pinjaman_id=<?= $pb['id'] ?>'" title="Klik untuk memilih pinjaman <?= htmlspecialchars($pb['no_pinjaman']) ?> - <?= htmlspecialchars($pb['nama_anggota']) ?>">
                   <td><strong><?= htmlspecialchars($pb['no_pinjaman']) ?></strong></td>
@@ -564,11 +566,11 @@ require_once __DIR__ . '/header.php';
                     </div>
                   </td>
                   <td class="table-amount text-red" style="font-weight: 700; text-align: right;">
-                    <?= rupiah($sisaPB) ?>
+                    <?= rupiah($sisaPokokPB) ?>
                   </td>
                   <td style="text-align: center;">
-                    <span class="badge badge-info" style="font-size: 0.72rem;">
-                      Bulan ke-<?= $pb['kali_angsuran'] + 1 ?> dari <?= $pb['lama_bulan'] ?>
+                    <span class="badge badge-info" style="font-size: 0.85rem; font-weight: 700; padding: 4px 8px;">
+                      <?= $angsuranKe ?>/<?= $pb['lama_bulan'] ?>
                     </span>
                   </td>
                 </tr>

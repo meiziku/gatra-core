@@ -554,8 +554,25 @@ foreach ($neracaConfig as $grpKey => $grp) {
                 $saldoReal = $saldoAwal + $mutasiLain;
             }
         } elseif ($grpKey === 'A2') {
-            $mutasiAT = (float)$db->query("SELECT COALESCE(SUM(kas_keluar - kas_masuk), 0) FROM buku_kas WHERE (kategori LIKE '%[$kode]%' OR kategori LIKE '%$nama%') AND tanggal <= '$tglSelesai'")->fetchColumn();
-            $saldoReal = $saldoAwal + $mutasiAT;
+            if ($isKontra) {
+                // Akun Kontra Aset (misal A.2.2 Akumulasi Penyusutan)
+                $mutasiKontra = (float)$db->query("
+                    SELECT COALESCE(SUM(ABS(kas_masuk - kas_keluar)), 0) 
+                    FROM buku_kas 
+                    WHERE (kategori LIKE '%[$kode]%' OR kategori = '$nama') 
+                      AND tanggal <= '$tglSelesai'
+                ")->fetchColumn();
+                $saldoReal = abs($saldoAwal) + $mutasiKontra;
+            } else {
+                // Aset Tetap (misal A.2.1 Inventaris)
+                $mutasiAT = (float)$db->query("
+                    SELECT COALESCE(SUM(kas_keluar - kas_masuk), 0) 
+                    FROM buku_kas 
+                    WHERE (kategori LIKE '%[$kode]%' OR kategori = '$nama') 
+                      AND tanggal <= '$tglSelesai'
+                ")->fetchColumn();
+                $saldoReal = $saldoAwal + $mutasiAT;
+            }
         } elseif ($grpKey === 'B1') {
             if (strpos($namaLower, 'manasuka') !== false || strpos($namaLower, 'sukarela') !== false) {
                 $saldoReal = $saldoAwal + (float)$db->query("SELECT COALESCE(SUM(CASE WHEN tipe_transaksi='setor' THEN nominal ELSE -nominal END), 0) FROM simpanan WHERE jenis_simpanan IN ('sukarela', 'manasuka') AND tanggal <= '$tglSelesai'")->fetchColumn();
@@ -611,8 +628,8 @@ foreach ($neracaConfig as $grpKey => $grp) {
             $grpSubtotal += $saldoReal;
         } elseif ($grpKey === 'A2') {
             if ($isKontra) {
-                $totalAktivaNeraca -= $saldoReal;
-                $grpSubtotal -= $saldoReal;
+                $totalAktivaNeraca -= abs($saldoReal);
+                $grpSubtotal -= abs($saldoReal);
             } else {
                 $totalAktivaNeraca += $saldoReal;
                 $grpSubtotal += $saldoReal;
@@ -1441,7 +1458,7 @@ include __DIR__ . '/header.php';
                     <?php endif; ?>
                   </td>
                   <td class="table-amount <?= $it['is_kontra'] ? 'text-red' : '' ?>" style="font-weight: 600;">
-                    <?= $it['is_kontra'] ? '(' . rupiah($it['saldo']) . ')' : rupiah($it['saldo']) ?>
+                    <?= $it['is_kontra'] ? '(' . rupiah(abs($it['saldo'])) . ')' : rupiah($it['saldo']) ?>
                   </td>
                 </tr>
               <?php endforeach; ?>
