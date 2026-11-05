@@ -20,6 +20,28 @@ function rupiah($angka) {
 }
 
 /**
+ * Format angka nominal tanpa prefix 'Rp' untuk tabel (pemisah ribuan titik, rata kanan)
+ */
+function nominal($angka, $dashIfZero = false) {
+    if ($angka === null || $angka === '') return $dashIfZero ? '-' : '0';
+    $val = (float)$angka;
+    if ($dashIfZero && abs($val) < 0.0001) return '-';
+    return number_format($val, 0, ',', '.');
+}
+
+/**
+ * Mengembalikan nama bulan dalam bahasa Indonesia (1 = Januari ... 12 = Desember)
+ */
+function nama_bulan($bln) {
+    $bulan = [
+        1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April',
+        5 => 'Mei', 6 => 'Juni', 7 => 'Juli', 8 => 'Agustus',
+        9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember'
+    ];
+    return $bulan[(int)$bln] ?? '';
+}
+
+/**
  * Alias format_rupiah untuk kompatibilitas
  */
 function format_rupiah($angka) {

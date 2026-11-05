@@ -213,9 +213,9 @@ foreach ($listPinjaman as $p) {
             return [
                 'ke' => (int)$a['angsuran_ke'],
                 'tanggal' => date('d/m/Y', strtotime($a['tanggal_bayar'])),
-                'pokok' => rupiah($a['angsuran_pokok']),
-                'bunga' => rupiah($a['angsuran_bunga']),
-                'total' => rupiah($a['jumlah_bayar']),
+                'pokok' => nominal($a['angsuran_pokok']),
+                'bunga' => nominal($a['angsuran_bunga']),
+                'total' => nominal($a['jumlah_bayar']),
                 'keterangan' => !empty($a['keterangan']) ? $a['keterangan'] : '-',
                 'petugas' => !empty($a['petugas']) ? $a['petugas'] : '-'
             ];
@@ -259,13 +259,13 @@ require_once __DIR__ . '/header.php';
           <th>No. Pinjaman</th>
           <th>Anggota</th>
           <th>Tgl Pencairan</th>
-          <th>Plafon Pinjaman</th>
+          <th style="text-align: right;">Plafon Pinjaman (Rp)</th>
           <th>Tenor / Bunga</th>
-          <th>Cicilan/Bulan</th>
-          <th>Total Dibayar</th>
-          <th>Sisa Pinjaman</th>
+          <th style="text-align: right;">Cicilan/Bulan (Rp)</th>
+          <th style="text-align: right;">Total Dibayar (Rp)</th>
+          <th style="text-align: right;">Sisa Pinjaman (Rp)</th>
           <th>Status</th>
-          <th>Aksi</th>
+          <th style="text-align: center;">Aksi</th>
         </tr>
       </thead>
       <tbody>
@@ -287,27 +287,27 @@ require_once __DIR__ . '/header.php';
                 <small style="color:var(--text-subtle);"><?= htmlspecialchars($p['no_anggota']) ?></small>
               </td>
               <td><?= date('d/m/Y', strtotime($p['tanggal_pencairan'] ?? $p['tanggal_pengajuan'])) ?></td>
-              <td class="table-amount"><?= rupiah($p['jumlah_pinjaman']) ?></td>
+              <td class="table-amount"><?= nominal($p['jumlah_pinjaman']) ?></td>
               <td>
                 <div><strong><?= $p['lama_bulan'] ?> Bulan</strong></div>
                 <small style="color:var(--text-muted);"><?= $p['bunga_persen'] ?>% / bln</small>
                 <?php if (!empty($p['asuransi']) && (float)$p['asuransi'] > 0): ?>
-                  <div style="font-size:0.75rem; color:#15803d; font-weight:600; margin-top:2px;">Asuransi: <?= rupiah($p['asuransi']) ?></div>
+                  <div style="font-size:0.75rem; color:#15803d; font-weight:600; margin-top:2px;">Asuransi: <?= nominal($p['asuransi']) ?></div>
                 <?php endif; ?>
               </td>
-              <td style="white-space: nowrap;">
-                <div class="table-amount text-blue" style="font-weight: 700;"><?= rupiah($p['total_angsuran_bulanan']) ?></div>
-                <small style="color:var(--text-muted); font-size:0.75rem; display:block; margin-top:2px; line-height: 1.4;">
-                  Pokok: <?= rupiah($p['angsuran_pokok']) ?><br>
-                  Jasa: <?= rupiah($p['angsuran_bunga']) ?>
+              <td class="table-amount" style="white-space: nowrap;">
+                <div class="text-blue" style="font-weight: 700;"><?= nominal($p['total_angsuran_bulanan']) ?></div>
+                <small style="color:var(--text-muted); font-size:0.75rem; display:block; margin-top:2px; line-height: 1.4; text-align: right;">
+                  Pokok: <?= nominal($p['angsuran_pokok']) ?><br>
+                  Jasa: <?= nominal($p['angsuran_bunga']) ?>
                 </small>
               </td>
               <td class="table-amount text-green">
-                <?= rupiah($p['total_dibayar']) ?>
-                <div style="font-size:0.75rem; color:var(--text-subtle);"><?= $p['kali_angsuran'] ?>x angsuran</div>
+                <?= nominal($p['total_dibayar']) ?>
+                <div style="font-size:0.75rem; color:var(--text-subtle); text-align: right;"><?= $p['kali_angsuran'] ?>x angsuran</div>
               </td>
               <td class="table-amount <?= $isLunas ? 'text-green' : 'text-red' ?>">
-                <?= rupiah($sisaPokok) ?>
+                <?= nominal($sisaPokok) ?>
               </td>
               <td>
                 <?php if ($isLunas): ?>
@@ -446,9 +446,9 @@ require_once __DIR__ . '/header.php';
               <tr>
                 <th style="width: 50px; text-align: center;">Ke-</th>
                 <th>Tgl Bayar</th>
-                <th style="text-align: right;">Pokok</th>
-                <th style="text-align: right;">Jasa / Bunga</th>
-                <th style="text-align: right;">Total Bayar</th>
+                <th style="text-align: right;">Pokok (Rp)</th>
+                <th style="text-align: right;">Jasa / Bunga (Rp)</th>
+                <th style="text-align: right;">Total Bayar (Rp)</th>
                 <th>Keterangan</th>
                 <th>Petugas</th>
               </tr>
@@ -564,10 +564,10 @@ require_once __DIR__ . '/header.php';
           <label class="form-label">Tanggal Pencairan *</label>
           <div class="input-date-dmy" style="position: relative; display: flex; align-items: center;">
             <input type="text" name="tanggal_pengajuan" class="form-control date-dmy-input" value="<?= date('d/m/Y') ?>" placeholder="dd/mm/yyyy" maxlength="10" oninput="formatDmyInput(this)" required style="padding-right: 40px; font-weight: 600;">
-            <button type="button" class="btn-date-picker" onclick="triggerDatePicker(this)" style="position: absolute; right: 4px; background: none; border: none; padding: 6px 8px; cursor: pointer; color: var(--text-muted); display: flex; align-items: center;" title="Buka Kalender">
+            <button type="button" class="btn-date-picker" tabindex="-1" onclick="triggerDatePicker(this)" style="position: absolute; right: 4px; background: none; border: none; padding: 6px 8px; cursor: pointer; color: var(--text-muted); display: flex; align-items: center;" title="Buka Kalender">
               <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
             </button>
-            <input type="date" class="native-date-hidden" value="<?= date('Y-m-d') ?>" onchange="syncNativeToDmy(this)" style="position: absolute; right: 0; bottom: 0; width: 0; height: 0; opacity: 0; border: none; pointer-events: none;">
+            <input type="date" class="native-date-hidden" tabindex="-1" value="<?= date('Y-m-d') ?>" onchange="syncNativeToDmy(this)" style="position: absolute; right: 0; bottom: 0; width: 0; height: 0; opacity: 0; border: none; pointer-events: none;">
           </div>
         </div>
 
@@ -671,10 +671,10 @@ require_once __DIR__ . '/header.php';
             <label class="form-label">Tanggal Pengajuan *</label>
             <div class="input-date-dmy" style="position: relative; display: flex; align-items: center;">
               <input type="text" id="edit_tanggal_pengajuan" name="tanggal_pengajuan" class="form-control date-dmy-input" placeholder="dd/mm/yyyy" maxlength="10" oninput="formatDmyInput(this)" required style="padding-right: 40px; font-weight: 600;">
-              <button type="button" class="btn-date-picker" onclick="triggerDatePicker(this)" style="position: absolute; right: 4px; background: none; border: none; padding: 6px 8px; cursor: pointer; color: var(--text-muted); display: flex; align-items: center;" title="Buka Kalender">
+              <button type="button" class="btn-date-picker" tabindex="-1" onclick="triggerDatePicker(this)" style="position: absolute; right: 4px; background: none; border: none; padding: 6px 8px; cursor: pointer; color: var(--text-muted); display: flex; align-items: center;" title="Buka Kalender">
                 <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
               </button>
-              <input type="date" id="edit_tanggal_pengajuan_native" class="native-date-hidden" onchange="syncNativeToDmy(this)" style="position: absolute; right: 0; bottom: 0; width: 0; height: 0; opacity: 0; border: none; pointer-events: none;">
+              <input type="date" id="edit_tanggal_pengajuan_native" class="native-date-hidden" tabindex="-1" onchange="syncNativeToDmy(this)" style="position: absolute; right: 0; bottom: 0; width: 0; height: 0; opacity: 0; border: none; pointer-events: none;">
             </div>
           </div>
 
@@ -841,6 +841,15 @@ document.addEventListener('DOMContentLoaded', function() {
       searchInput.addEventListener('input', function() {
         filterAnggota(this.value.trim().toLowerCase());
       });
+
+      if (typeof initSearchDropdownKeyNav === 'function') {
+        initSearchDropdownKeyNav({
+          input: searchInput,
+          list: document.getElementById('anggotaOptionsList'),
+          itemSelector: '.anggota-option',
+          onEscape: () => { menu.style.display = 'none'; }
+        });
+      }
     }
 
     function filterAnggota(keyword) {

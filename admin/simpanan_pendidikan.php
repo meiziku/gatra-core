@@ -316,10 +316,10 @@ include 'header.php';
         <tr>
           <th>No. Rekening</th>
           <th>Anggota</th>
-          <th>Target Dana</th>
+          <th style="text-align: right;">Target Dana (Rp)</th>
           <th>Tenor</th>
-          <th>Setoran / Bln</th>
-          <th style="min-width: 180px;">Progres Tabungan</th>
+          <th style="text-align: right;">Setoran / Bln (Rp)</th>
+          <th style="min-width: 180px;">Progres Tabungan (Rp)</th>
           <th>Jatuh Tempo</th>
           <th>Status</th>
           <th style="text-align: right; width: 140px;">Aksi</th>
@@ -353,21 +353,21 @@ include 'header.php';
                 <strong><?= htmlspecialchars($item['nama_anggota']) ?></strong>
                 <div style="font-size: 0.75rem; color: var(--text-muted);"><?= htmlspecialchars($item['no_anggota']) ?> &bull; <?= htmlspecialchars($item['no_telp'] ?? '-') ?></div>
               </td>
-              <td style="font-weight: 800; color: #047857;">
-                <?= rupiah($item['target_dana']) ?>
+              <td class="table-amount" style="font-weight: 800; color: #047857;">
+                <?= nominal($item['target_dana']) ?>
               </td>
               <td>
                 <span class="badge badge-info" style="font-weight: 700;">
                   <?= $item['tenor_bulan'] ?> Bulan (<?= round($item['tenor_bulan'] / 12) ?> Thn)
                 </span>
               </td>
-              <td style="font-weight: 700;">
-                <?= rupiah($item['setoran_bulanan']) ?>
+              <td class="table-amount" style="font-weight: 700;">
+                <?= nominal($item['setoran_bulanan']) ?>
               </td>
               <td>
                 <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 3px;">
                   <span><strong><?= $item['total_setoran_kali'] ?></strong> / <?= $item['tenor_bulan'] ?> bln</span>
-                  <span style="font-weight: 700; color: var(--primary);"><?= rupiah($item['total_setoran_nominal']) ?></span>
+                  <span style="font-weight: 700; color: var(--primary);"><?= nominal($item['total_setoran_nominal']) ?></span>
                 </div>
                 <div style="background: #e2e8f0; height: 7px; border-radius: 4px; overflow: hidden;">
                   <div style="background: <?= $progressPersen >= 100 ? '#10b981' : '#3b82f6' ?>; width: <?= $progressPersen ?>%; height: 100%;"></div>
@@ -436,7 +436,7 @@ include 'header.php';
           <th>No. Rekening</th>
           <th>Nama Anggota</th>
           <th>Setoran Ke</th>
-          <th>Nominal Setoran</th>
+          <th style="text-align: right;">Nominal Setoran (Rp)</th>
           <th>Keterangan</th>
           <th>Petugas</th>
           <th>Catatan</th>
@@ -457,8 +457,8 @@ include 'header.php';
                   Bulan ke-<?= $setor['setoran_ke'] ?> / <?= $setor['tenor_bulan'] ?>
                 </span>
               </td>
-              <td style="font-weight: 800; color: #047857;">
-                <?= rupiah($setor['nominal']) ?>
+              <td class="table-amount" style="font-weight: 800; color: #047857; text-align: right;">
+                <?= nominal($setor['nominal']) ?>
               </td>
               <td>
                 <?php 
@@ -591,10 +591,10 @@ include 'header.php';
             <label class="form-label">Tanggal Mulai Simpanan *</label>
             <div class="input-date-dmy" style="position: relative; display: flex; align-items: center;">
               <input type="text" name="tanggal_mulai" class="form-control date-dmy-input" value="<?= date('d/m/Y') ?>" placeholder="dd/mm/yyyy" maxlength="10" oninput="formatDmyInput(this)" required style="padding-right: 40px; font-weight: 600;">
-              <button type="button" class="btn-date-picker" onclick="triggerDatePicker(this)" style="position: absolute; right: 4px; background: none; border: none; padding: 6px 8px; cursor: pointer; color: var(--text-muted); display: flex; align-items: center;" title="Buka Kalender">
+              <button type="button" class="btn-date-picker" tabindex="-1" onclick="triggerDatePicker(this)" style="position: absolute; right: 4px; background: none; border: none; padding: 6px 8px; cursor: pointer; color: var(--text-muted); display: flex; align-items: center;" title="Buka Kalender">
                 <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
               </button>
-              <input type="date" class="native-date-hidden" value="<?= date('Y-m-d') ?>" onchange="syncNativeToDmy(this)" style="position: absolute; right: 0; bottom: 0; width: 0; height: 0; opacity: 0; border: none; pointer-events: none;">
+              <input type="date" class="native-date-hidden" tabindex="-1" value="<?= date('Y-m-d') ?>" onchange="syncNativeToDmy(this)" style="position: absolute; right: 0; bottom: 0; width: 0; height: 0; opacity: 0; border: none; pointer-events: none;">
             </div>
           </div>
 
@@ -678,10 +678,10 @@ include 'header.php';
             <label class="form-label">Tanggal Bayar *</label>
             <div class="input-date-dmy" style="position: relative; display: flex; align-items: center;">
               <input type="text" name="tanggal_bayar" class="form-control date-dmy-input" value="<?= date('d/m/Y') ?>" placeholder="dd/mm/yyyy" maxlength="10" oninput="formatDmyInput(this)" required style="padding-right: 40px; font-weight: 600;">
-              <button type="button" class="btn-date-picker" onclick="triggerDatePicker(this)" style="position: absolute; right: 4px; background: none; border: none; padding: 6px 8px; cursor: pointer; color: var(--text-muted); display: flex; align-items: center;" title="Buka Kalender">
+              <button type="button" class="btn-date-picker" tabindex="-1" onclick="triggerDatePicker(this)" style="position: absolute; right: 4px; background: none; border: none; padding: 6px 8px; cursor: pointer; color: var(--text-muted); display: flex; align-items: center;" title="Buka Kalender">
                 <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
               </button>
-              <input type="date" class="native-date-hidden" value="<?= date('Y-m-d') ?>" onchange="syncNativeToDmy(this)" style="position: absolute; right: 0; bottom: 0; width: 0; height: 0; opacity: 0; border: none; pointer-events: none;">
+              <input type="date" class="native-date-hidden" tabindex="-1" value="<?= date('Y-m-d') ?>" onchange="syncNativeToDmy(this)" style="position: absolute; right: 0; bottom: 0; width: 0; height: 0; opacity: 0; border: none; pointer-events: none;">
             </div>
           </div>
         </div>
@@ -1198,6 +1198,15 @@ document.addEventListener('DOMContentLoaded', function() {
           emptyNotice.style.display = matchedCount === 0 ? 'block' : 'none';
         }
       });
+
+      if (typeof initSearchDropdownKeyNav === 'function') {
+        initSearchDropdownKeyNav({
+          input: searchInput,
+          list: document.getElementById('spAnggotaList'),
+          itemSelector: '.sp-anggota-opt',
+          onEscape: () => { menu.style.display = 'none'; }
+        });
+      }
     }
 
     options.forEach(opt => {

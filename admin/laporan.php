@@ -192,7 +192,7 @@ if ($tab === 'simpanan_wajib' || $tab === 'simpanan_manasuka') {
         $item = [
             'tanggal'    => date('d/m/Y', strtotime($sr['tanggal'])),
             'tipe'       => $sr['tipe_transaksi'],
-            'nominal'    => rupiah($sr['nominal']),
+            'nominal'    => nominal($sr['nominal']),
             'keterangan' => !empty($sr['keterangan']) ? $sr['keterangan'] : '-',
             'petugas'    => !empty($sr['petugas']) ? $sr['petugas'] : '-'
         ];
@@ -327,7 +327,7 @@ foreach ($lrConfig['pendapatan'] ?? [] as $p) {
                     'sumber' => 'Angsuran SP',
                     'no_bukti' => $ra['no_pinjaman'] . ' (Ke-' . $ra['angsuran_ke'] . ')',
                     'keterangan' => $ra['nama_anggota'] . ' (' . $ra['no_anggota'] . ')' . ($ra['keterangan'] ? ' - ' . $ra['keterangan'] : ''),
-                    'nominal' => rupiah($ra['angsuran_bunga']),
+                    'nominal' => nominal($ra['angsuran_bunga']),
                     'nominal_raw' => (float)$ra['angsuran_bunga']
                 ];
             }
@@ -354,7 +354,7 @@ foreach ($lrConfig['pendapatan'] ?? [] as $p) {
                     'sumber' => $sumber,
                     'no_bukti' => $bk['no_bukti'] ?: '-',
                     'keterangan' => $bk['keterangan'] ?: '-',
-                    'nominal' => rupiah($masuk),
+                    'nominal' => nominal($masuk),
                     'nominal_raw' => $masuk
                 ];
             }
@@ -415,7 +415,7 @@ foreach ($lrConfig['pengeluaran'] ?? [] as $p) {
                     'sumber' => $sumber,
                     'no_bukti' => $bk['no_bukti'] ?: '-',
                     'keterangan' => $bk['keterangan'] ?: '-',
-                    'nominal' => rupiah($keluar),
+                    'nominal' => nominal($keluar),
                     'nominal_raw' => $keluar
                 ];
             }
@@ -984,10 +984,10 @@ include __DIR__ . '/header.php';
         <label class="form-label" style="font-size: 0.8rem; margin-bottom: 4px;">Dari Tanggal:</label>
         <div class="input-date-dmy" style="position: relative; display: flex; align-items: center;">
           <input type="text" name="tgl_mulai" class="form-control date-dmy-input" value="<?= tgl_dmy($tglMulai) ?>" placeholder="dd/mm/yyyy" maxlength="10" oninput="formatDmyInput(this)" style="padding-right: 36px; font-size: 0.86rem;">
-          <button type="button" class="btn-date-picker" onclick="triggerDatePicker(this)" style="position: absolute; right: 2px; background: none; border: none; padding: 6px 8px; cursor: pointer; color: var(--text-muted);" title="Buka Kalender">
+          <button type="button" class="btn-date-picker" tabindex="-1" onclick="triggerDatePicker(this)" style="position: absolute; right: 2px; background: none; border: none; padding: 6px 8px; cursor: pointer; color: var(--text-muted);" title="Buka Kalender">
             <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
           </button>
-          <input type="date" class="native-date-hidden" value="<?= $tglMulai ?>" onchange="syncNativeToDmy(this)" style="position: absolute; right: 0; bottom: 0; width: 0; height: 0; opacity: 0; border: none; pointer-events: none;">
+          <input type="date" class="native-date-hidden" tabindex="-1" value="<?= $tglMulai ?>" onchange="syncNativeToDmy(this)" style="position: absolute; right: 0; bottom: 0; width: 0; height: 0; opacity: 0; border: none; pointer-events: none;">
         </div>
       </div>
 
@@ -996,10 +996,10 @@ include __DIR__ . '/header.php';
         <label class="form-label" style="font-size: 0.8rem; margin-bottom: 4px;">Sampai Tanggal:</label>
         <div class="input-date-dmy" style="position: relative; display: flex; align-items: center;">
           <input type="text" name="tgl_selesai" class="form-control date-dmy-input" value="<?= tgl_dmy($tglSelesai) ?>" placeholder="dd/mm/yyyy" maxlength="10" oninput="formatDmyInput(this)" style="padding-right: 36px; font-size: 0.86rem;">
-          <button type="button" class="btn-date-picker" onclick="triggerDatePicker(this)" style="position: absolute; right: 2px; background: none; border: none; padding: 6px 8px; cursor: pointer; color: var(--text-muted);" title="Buka Kalender">
+          <button type="button" class="btn-date-picker" tabindex="-1" onclick="triggerDatePicker(this)" style="position: absolute; right: 2px; background: none; border: none; padding: 6px 8px; cursor: pointer; color: var(--text-muted);" title="Buka Kalender">
             <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
           </button>
-          <input type="date" class="native-date-hidden" value="<?= $tglSelesai ?>" onchange="syncNativeToDmy(this)" style="position: absolute; right: 0; bottom: 0; width: 0; height: 0; opacity: 0; border: none; pointer-events: none;">
+          <input type="date" class="native-date-hidden" tabindex="-1" value="<?= $tglSelesai ?>" onchange="syncNativeToDmy(this)" style="position: absolute; right: 0; bottom: 0; width: 0; height: 0; opacity: 0; border: none; pointer-events: none;">
         </div>
       </div>
 
@@ -1071,10 +1071,10 @@ include __DIR__ . '/header.php';
             <th style="width: 140px;">No. Anggota</th>
             <th>Nama Anggota</th>
             <th>Pekerjaan / Unit</th>
-            <th style="text-align: right; width: 150px;">Saldo Awal</th>
-            <th style="text-align: right; width: 150px;">Setoran Periode</th>
-            <th style="text-align: right; width: 140px;">Penarikan</th>
-            <th style="text-align: right; width: 160px;">Saldo Akhir</th>
+            <th style="text-align: right; width: 150px;">Saldo Awal (Rp)</th>
+            <th style="text-align: right; width: 150px;">Setoran Periode (Rp)</th>
+            <th style="text-align: right; width: 140px;">Penarikan (Rp)</th>
+            <th style="text-align: right; width: 160px;">Saldo Akhir (Rp)</th>
           </tr>
         </thead>
         <tbody>
@@ -1090,15 +1090,15 @@ include __DIR__ . '/header.php';
                   <small style="color: var(--text-muted);"><?= htmlspecialchars($sw['no_telp'] ?? '-') ?></small>
                 </td>
                 <td><span class="badge badge-neutral"><?= htmlspecialchars($sw['pekerjaan'] ?? '-') ?></span></td>
-                <td class="table-amount"><?= rupiah($sw['saldo_awal']) ?></td>
+                <td class="table-amount"><?= nominal($sw['saldo_awal']) ?></td>
                 <td class="table-amount <?= $sw['setor_periode'] > 0 ? 'text-green' : '' ?>" style="font-weight: 600;">
-                  <?= $sw['setor_periode'] > 0 ? rupiah($sw['setor_periode']) : '-' ?>
+                  <?= $sw['setor_periode'] > 0 ? nominal($sw['setor_periode']) : '-' ?>
                 </td>
                 <td class="table-amount <?= $sw['tarik_periode'] > 0 ? 'text-red' : '' ?>">
-                  <?= $sw['tarik_periode'] > 0 ? rupiah($sw['tarik_periode']) : '-' ?>
+                  <?= $sw['tarik_periode'] > 0 ? nominal($sw['tarik_periode']) : '-' ?>
                 </td>
                 <td class="table-amount text-blue" style="font-weight: 800;">
-                  <?= rupiah($sw['saldo_akhir']) ?>
+                  <?= nominal($sw['saldo_akhir']) ?>
                 </td>
               </tr>
             <?php endforeach; ?>
@@ -1107,10 +1107,10 @@ include __DIR__ . '/header.php';
         <tfoot>
           <tr style="background: #f1f5f9; font-weight: 800; border-top: 2px solid #cbd5e1;">
             <td colspan="4" style="padding: 14px 18px; text-transform: uppercase;">TOTAL KESELURUHAN SIMPANAN WAJIB</td>
-            <td class="table-amount"><?= rupiah($totWajibAwal) ?></td>
-            <td class="table-amount text-green"><?= rupiah($totWajibSetor) ?></td>
-            <td class="table-amount text-red"><?= rupiah($totWajibTarik) ?></td>
-            <td class="table-amount text-blue" style="font-size: 1.05rem;"><?= rupiah($totWajibAkhir) ?></td>
+            <td class="table-amount"><?= nominal($totWajibAwal) ?></td>
+            <td class="table-amount text-green"><?= nominal($totWajibSetor) ?></td>
+            <td class="table-amount text-red"><?= nominal($totWajibTarik) ?></td>
+            <td class="table-amount text-blue" style="font-size: 1.05rem;"><?= nominal($totWajibAkhir) ?></td>
           </tr>
         </tfoot>
       </table>
@@ -1173,10 +1173,10 @@ include __DIR__ . '/header.php';
             <th style="width: 140px;">No. Anggota</th>
             <th>Nama Anggota</th>
             <th>Pekerjaan / Unit</th>
-            <th style="text-align: right; width: 150px;">Saldo Awal</th>
-            <th style="text-align: right; width: 150px;">Setoran Periode</th>
-            <th style="text-align: right; width: 140px;">Penarikan</th>
-            <th style="text-align: right; width: 160px;">Saldo Akhir</th>
+            <th style="text-align: right; width: 150px;">Saldo Awal (Rp)</th>
+            <th style="text-align: right; width: 150px;">Setoran Periode (Rp)</th>
+            <th style="text-align: right; width: 140px;">Penarikan (Rp)</th>
+            <th style="text-align: right; width: 160px;">Saldo Akhir (Rp)</th>
           </tr>
         </thead>
         <tbody>
@@ -1192,15 +1192,15 @@ include __DIR__ . '/header.php';
                   <small style="color: var(--text-muted);"><?= htmlspecialchars($sm['no_telp'] ?? '-') ?></small>
                 </td>
                 <td><span class="badge badge-neutral"><?= htmlspecialchars($sm['pekerjaan'] ?? '-') ?></span></td>
-                <td class="table-amount"><?= rupiah($sm['saldo_awal']) ?></td>
+                <td class="table-amount"><?= nominal($sm['saldo_awal']) ?></td>
                 <td class="table-amount <?= $sm['setor_periode'] > 0 ? 'text-green' : '' ?>" style="font-weight: 600;">
-                  <?= $sm['setor_periode'] > 0 ? rupiah($sm['setor_periode']) : '-' ?>
+                  <?= $sm['setor_periode'] > 0 ? nominal($sm['setor_periode']) : '-' ?>
                 </td>
                 <td class="table-amount <?= $sm['tarik_periode'] > 0 ? 'text-red' : '' ?>">
-                  <?= $sm['tarik_periode'] > 0 ? rupiah($sm['tarik_periode']) : '-' ?>
+                  <?= $sm['tarik_periode'] > 0 ? nominal($sm['tarik_periode']) : '-' ?>
                 </td>
                 <td class="table-amount text-blue" style="font-weight: 800;">
-                  <?= rupiah($sm['saldo_akhir']) ?>
+                  <?= nominal($sm['saldo_akhir']) ?>
                 </td>
               </tr>
             <?php endforeach; ?>
@@ -1209,10 +1209,10 @@ include __DIR__ . '/header.php';
         <tfoot>
           <tr style="background: #f1f5f9; font-weight: 800; border-top: 2px solid #cbd5e1;">
             <td colspan="4" style="padding: 14px 18px; text-transform: uppercase;">TOTAL KESELURUHAN SIMPANAN MANASUKA</td>
-            <td class="table-amount"><?= rupiah($totManasukaAwal) ?></td>
-            <td class="table-amount text-green"><?= rupiah($totManasukaSetor) ?></td>
-            <td class="table-amount text-red"><?= rupiah($totManasukaTarik) ?></td>
-            <td class="table-amount text-blue" style="font-size: 1.05rem;"><?= rupiah($totManasukaAkhir) ?></td>
+            <td class="table-amount"><?= nominal($totManasukaAwal) ?></td>
+            <td class="table-amount text-green"><?= nominal($totManasukaSetor) ?></td>
+            <td class="table-amount text-red"><?= nominal($totManasukaTarik) ?></td>
+            <td class="table-amount text-blue" style="font-size: 1.05rem;"><?= nominal($totManasukaAkhir) ?></td>
           </tr>
         </tfoot>
       </table>
@@ -1305,7 +1305,7 @@ include __DIR__ . '/header.php';
                 </td>
               <?php endfor; ?>
               <td class="table-amount text-green" style="font-weight: 800; background: #f8fafc; padding: 8px 12px;">
-                <?= $p['total'] > 0 ? rupiah($p['total']) : '-' ?>
+                <?= $p['total'] > 0 ? nominal($p['total']) : '-' ?>
               </td>
             </tr>
           <?php endforeach; ?>
@@ -1320,7 +1320,7 @@ include __DIR__ . '/header.php';
               </td>
             <?php endfor; ?>
             <td class="table-amount text-green" style="font-size: 0.95rem; font-weight: 900; background: #d1fae5; padding: 10px 12px;">
-              <?= rupiah($totalHasilPendapatan) ?>
+              <?= nominal($totalHasilPendapatan) ?>
             </td>
           </tr>
 
@@ -1347,7 +1347,7 @@ include __DIR__ . '/header.php';
                 </td>
               <?php endfor; ?>
               <td class="table-amount text-red" style="font-weight: 700; background: #f8fafc; padding: 8px 12px;">
-                <?= $p['total'] > 0 ? rupiah($p['total']) : '-' ?>
+                <?= $p['total'] > 0 ? nominal($p['total']) : '-' ?>
               </td>
             </tr>
           <?php endforeach; ?>
@@ -1362,7 +1362,7 @@ include __DIR__ . '/header.php';
               </td>
             <?php endfor; ?>
             <td class="table-amount text-red" style="font-size: 0.95rem; font-weight: 900; background: #fee2e2; padding: 10px 12px;">
-              <?= rupiah($totalHasilPengeluaran) ?>
+              <?= nominal($totalHasilPengeluaran) ?>
             </td>
           </tr>
 
@@ -1380,7 +1380,7 @@ include __DIR__ . '/header.php';
               </td>
             <?php endfor; ?>
             <td class="table-amount <?= $shuTahunBerjalan >= 0 ? 'text-green' : 'text-red' ?>" style="font-size: 1.05rem; font-weight: 900; background: #dbeafe; padding: 14px 12px;">
-              <?= rupiah($shuTahunBerjalan) ?>
+              <?= nominal($shuTahunBerjalan) ?>
             </td>
           </tr>
 
@@ -1446,7 +1446,7 @@ include __DIR__ . '/header.php';
             ?>
               <tr style="background: #f1f5f9; font-weight: 800;">
                 <td colspan="2" style="color: var(--secondary);"><?= htmlspecialchars($g['nama_kategori']) ?></td>
-                <td class="table-amount" style="font-weight: 800; color: var(--secondary);"><?= rupiah($g['subtotal']) ?></td>
+                <td class="table-amount" style="font-weight: 800; color: var(--secondary);"><?= nominal($g['subtotal']) ?></td>
               </tr>
               <?php foreach ($g['items'] as $it): ?>
                 <tr>
@@ -1458,7 +1458,7 @@ include __DIR__ . '/header.php';
                     <?php endif; ?>
                   </td>
                   <td class="table-amount <?= $it['is_kontra'] ? 'text-red' : '' ?>" style="font-weight: 600;">
-                    <?= $it['is_kontra'] ? '(' . rupiah(abs($it['saldo'])) . ')' : rupiah($it['saldo']) ?>
+                    <?= $it['is_kontra'] ? '(' . nominal(abs($it['saldo'])) . ')' : nominal($it['saldo']) ?>
                   </td>
                 </tr>
               <?php endforeach; ?>
@@ -1467,7 +1467,7 @@ include __DIR__ . '/header.php';
           <tfoot>
             <tr style="background: #eff6ff; font-weight: 900; border-top: 2px solid #93c5fd;">
               <td colspan="2" style="padding: 14px 18px; color: #1e40af; font-size: 1rem;">TOTAL AKTIVA / ASET</td>
-              <td class="table-amount text-blue" style="font-size: 1.15rem;"><?= rupiah($totalAktivaNeraca) ?></td>
+              <td class="table-amount text-blue" style="font-size: 1.15rem;"><?= nominal($totalAktivaNeraca) ?></td>
             </tr>
           </tfoot>
         </table>
@@ -1497,7 +1497,7 @@ include __DIR__ . '/header.php';
             ?>
               <tr style="background: #f1f5f9; font-weight: 800;">
                 <td colspan="2" style="color: var(--secondary);"><?= htmlspecialchars($g['nama_kategori']) ?></td>
-                <td class="table-amount" style="font-weight: 800; color: var(--secondary);"><?= rupiah($g['subtotal']) ?></td>
+                <td class="table-amount" style="font-weight: 800; color: var(--secondary);"><?= nominal($g['subtotal']) ?></td>
               </tr>
               <?php foreach ($g['items'] as $it): ?>
                 <tr>
@@ -1509,7 +1509,7 @@ include __DIR__ . '/header.php';
                     <?php endif; ?>
                   </td>
                   <td class="table-amount" style="font-weight: 600;">
-                    <?= rupiah($it['saldo']) ?>
+                    <?= nominal($it['saldo']) ?>
                   </td>
                 </tr>
               <?php endforeach; ?>
@@ -1518,7 +1518,7 @@ include __DIR__ . '/header.php';
           <tfoot>
             <tr style="background: #eff6ff; font-weight: 900; border-top: 2px solid #93c5fd;">
               <td colspan="2" style="padding: 14px 18px; color: #1e40af; font-size: 1rem;">TOTAL PASIVA</td>
-              <td class="table-amount text-blue" style="font-size: 1.15rem;"><?= rupiah($totalPasivaNeraca) ?></td>
+              <td class="table-amount text-blue" style="font-size: 1.15rem;"><?= nominal($totalPasivaNeraca) ?></td>
             </tr>
           </tfoot>
         </table>
@@ -1681,49 +1681,49 @@ include __DIR__ . '/header.php';
             </th>
             <th class="th-sortable" data-col="3" data-type="amount" style="text-align: right; width: 130px; white-space: nowrap;" title="Urutkan berdasarkan Simp. Pokok">
               <div class="th-content" style="justify-content: flex-end;">
-                <span>Simp. Pokok</span>
+                <span>Simp. Pokok (Rp)</span>
                 <span class="sort-icon">⇅</span>
               </div>
             </th>
             <th class="th-sortable" data-col="4" data-type="amount" style="text-align: right; width: 130px; white-space: nowrap;" title="Urutkan berdasarkan Simp. Wajib">
               <div class="th-content" style="justify-content: flex-end;">
-                <span>Simp. Wajib</span>
+                <span>Simp. Wajib (Rp)</span>
                 <span class="sort-icon">⇅</span>
               </div>
             </th>
             <th class="th-sortable" data-col="5" data-type="amount" style="text-align: right; width: 135px; white-space: nowrap;" title="Urutkan berdasarkan Jasa Pinjaman">
               <div class="th-content" style="justify-content: flex-end;">
-                <span>Jasa Pinjaman</span>
+                <span>Jasa Pinjaman (Rp)</span>
                 <span class="sort-icon">⇅</span>
               </div>
             </th>
             <th class="th-sortable" data-col="6" data-type="amount" style="text-align: right; width: 130px; color: #1e40af; background: #eff6ff; white-space: nowrap;" title="Urutkan berdasarkan SHU Pokok">
               <div class="th-content" style="justify-content: flex-end;">
-                <span>SHU Pokok</span>
+                <span>SHU Pokok (Rp)</span>
                 <span class="sort-icon">⇅</span>
               </div>
             </th>
             <th class="th-sortable" data-col="7" data-type="amount" style="text-align: right; width: 130px; color: #1e40af; background: #eff6ff; white-space: nowrap;" title="Urutkan berdasarkan SHU Wajib">
               <div class="th-content" style="justify-content: flex-end;">
-                <span>SHU Wajib</span>
+                <span>SHU Wajib (Rp)</span>
                 <span class="sort-icon">⇅</span>
               </div>
             </th>
             <th class="th-sortable" data-col="8" data-type="amount" style="text-align: right; width: 135px; color: #1e40af; background: #eff6ff; white-space: nowrap;" title="Urutkan berdasarkan SHU Pinjaman">
               <div class="th-content" style="justify-content: flex-end;">
-                <span>SHU Pinjaman</span>
+                <span>SHU Pinjaman (Rp)</span>
                 <span class="sort-icon">⇅</span>
               </div>
             </th>
             <th class="th-sortable" data-col="9" data-type="amount" style="text-align: right; width: 140px; color: #047857; background: #ecfdf5; white-space: nowrap;" title="Urutkan berdasarkan Bunga Manasuka">
               <div class="th-content" style="justify-content: flex-end;">
-                <span>Bunga Manasuka</span>
+                <span>Bunga Manasuka (Rp)</span>
                 <span class="sort-icon">⇅</span>
               </div>
             </th>
             <th class="th-sortable" data-col="10" data-type="amount" style="text-align: right; width: 155px; color: #15803d; font-weight: 800; background: #dcfce7; white-space: nowrap;" title="Urutkan berdasarkan Total Diterima">
               <div class="th-content" style="justify-content: flex-end;">
-                <span>Total Diterima</span>
+                <span>Total Diterima (Rp)</span>
                 <span class="sort-icon">⇅</span>
               </div>
             </th>
@@ -1741,15 +1741,15 @@ include __DIR__ . '/header.php';
                   <div style="font-weight: 600; color: var(--text-main);"><?= htmlspecialchars($r['nama']) ?></div>
                   <small style="color: var(--text-muted);"><?= htmlspecialchars($r['pekerjaan'] ?? '-') ?></small>
                 </td>
-                <td class="table-amount"><?= rupiah($r['sp']) ?></td>
-                <td class="table-amount"><?= rupiah($r['sw']) ?></td>
-                <td class="table-amount"><?= rupiah($r['jp']) ?></td>
-                <td class="table-amount text-blue" style="font-weight: 700; background: #f8fafc;"><?= rupiah($r['shu_sp']) ?></td>
-                <td class="table-amount text-blue" style="font-weight: 700; background: #f8fafc;"><?= rupiah($r['shu_sw']) ?></td>
-                <td class="table-amount text-blue" style="font-weight: 700; background: #f8fafc;"><?= rupiah($r['shu_jp']) ?></td>
-                <td class="table-amount text-green" style="font-weight: 600; background: #f0fdf4;"><?= rupiah($r['bunga_manasuka']) ?></td>
+                <td class="table-amount"><?= nominal($r['sp']) ?></td>
+                <td class="table-amount"><?= nominal($r['sw']) ?></td>
+                <td class="table-amount"><?= nominal($r['jp']) ?></td>
+                <td class="table-amount text-blue" style="font-weight: 700; background: #f8fafc;"><?= nominal($r['shu_sp']) ?></td>
+                <td class="table-amount text-blue" style="font-weight: 700; background: #f8fafc;"><?= nominal($r['shu_sw']) ?></td>
+                <td class="table-amount text-blue" style="font-weight: 700; background: #f8fafc;"><?= nominal($r['shu_jp']) ?></td>
+                <td class="table-amount text-green" style="font-weight: 600; background: #f0fdf4;"><?= nominal($r['bunga_manasuka']) ?></td>
                 <td class="table-amount text-green" style="font-weight: 900; font-size: 0.95rem; background: #ecfdf5;">
-                  <?= rupiah($r['total_diterima']) ?>
+                  <?= nominal($r['total_diterima']) ?>
                 </td>
               </tr>
             <?php endforeach; ?>
@@ -1758,14 +1758,14 @@ include __DIR__ . '/header.php';
         <tfoot>
           <tr style="background: #f1f5f9; font-weight: 900; border-top: 2px solid #cbd5e1; font-size: 0.85rem;">
             <td colspan="3" style="padding: 14px 16px; text-transform: uppercase;">TOTAL KESELURUHAN</td>
-            <td class="table-amount"><?= rupiah($totAllSP) ?></td>
-            <td class="table-amount"><?= rupiah($totAllSW) ?></td>
-            <td class="table-amount"><?= rupiah($totAllJP) ?></td>
-            <td class="table-amount text-blue" style="background: #dbeafe;"><?= rupiah($totAllSHUSP) ?></td>
-            <td class="table-amount text-blue" style="background: #dbeafe;"><?= rupiah($totAllSHUSW) ?></td>
-            <td class="table-amount text-blue" style="background: #dbeafe;"><?= rupiah($totAllSHUJP) ?></td>
-            <td class="table-amount text-green" style="background: #bbf7d0;"><?= rupiah($totAllBungaManasuka) ?></td>
-            <td class="table-amount text-green" style="font-size: 1.05rem; background: #86efac;"><?= rupiah($totAllSHUAnggota) ?></td>
+            <td class="table-amount"><?= nominal($totAllSP) ?></td>
+            <td class="table-amount"><?= nominal($totAllSW) ?></td>
+            <td class="table-amount"><?= nominal($totAllJP) ?></td>
+            <td class="table-amount text-blue" style="background: #dbeafe;"><?= nominal($totAllSHUSP) ?></td>
+            <td class="table-amount text-blue" style="background: #dbeafe;"><?= nominal($totAllSHUSW) ?></td>
+            <td class="table-amount text-blue" style="background: #dbeafe;"><?= nominal($totAllSHUJP) ?></td>
+            <td class="table-amount text-green" style="background: #bbf7d0;"><?= nominal($totAllBungaManasuka) ?></td>
+            <td class="table-amount text-green" style="font-size: 1.05rem; background: #86efac;"><?= nominal($totAllSHUAnggota) ?></td>
           </tr>
         </tfoot>
       </table>
@@ -1843,7 +1843,7 @@ include __DIR__ . '/header.php';
                 <?= number_format($pos['persen'], 2, ',', '.') ?>%
               </td>
               <td class="table-amount text-blue" style="font-weight: 700;">
-                <?= rupiah($pos['nominal']) ?>
+                <?= nominal($pos['nominal']) ?>
               </td>
             </tr>
           <?php endforeach; ?>
@@ -1852,7 +1852,7 @@ include __DIR__ . '/header.php';
           <tr style="background: #eff6ff; font-weight: 900; border-top: 2px solid #93c5fd; font-size: 1rem;">
             <td colspan="2" style="padding: 14px 18px; color: #1e40af;">TOTAL PEMBAGIAN SHU (100%)</td>
             <td style="text-align: right; color: #1e40af; font-size: 1.05rem;"><?= number_format($totalPersenShu, 1, ',', '.') ?>%</td>
-            <td class="table-amount text-green" style="font-size: 1.15rem;"><?= rupiah($totalAlokasiShuRp) ?></td>
+            <td class="table-amount text-green" style="font-size: 1.15rem;"><?= nominal($totalAlokasiShuRp) ?></td>
           </tr>
         </tfoot>
       </table>

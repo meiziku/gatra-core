@@ -386,10 +386,10 @@ require_once __DIR__ . '/header.php';
             <label class="form-label">Tanggal Bayar *</label>
             <div class="input-date-dmy" style="position: relative; display: flex; align-items: center;">
               <input type="text" name="tanggal_bayar" class="form-control date-dmy-input" value="<?= date('d/m/Y') ?>" placeholder="dd/mm/yyyy" maxlength="10" oninput="formatDmyInput(this)" required style="padding-right: 40px; font-weight: 600;">
-              <button type="button" class="btn-date-picker" onclick="triggerDatePicker(this)" style="position: absolute; right: 4px; background: none; border: none; padding: 6px 8px; cursor: pointer; color: var(--text-muted); display: flex; align-items: center;" title="Buka Kalender">
+              <button type="button" class="btn-date-picker" tabindex="-1" onclick="triggerDatePicker(this)" style="position: absolute; right: 4px; background: none; border: none; padding: 6px 8px; cursor: pointer; color: var(--text-muted); display: flex; align-items: center;" title="Buka Kalender">
                 <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
               </button>
-              <input type="date" class="native-date-hidden" value="<?= date('Y-m-d') ?>" onchange="syncNativeToDmy(this)" style="position: absolute; right: 0; bottom: 0; width: 0; height: 0; opacity: 0; border: none; pointer-events: none;">
+              <input type="date" class="native-date-hidden" tabindex="-1" value="<?= date('Y-m-d') ?>" onchange="syncNativeToDmy(this)" style="position: absolute; right: 0; bottom: 0; width: 0; height: 0; opacity: 0; border: none; pointer-events: none;">
             </div>
           </div>
 
@@ -431,30 +431,27 @@ require_once __DIR__ . '/header.php';
             <th>Tgl Bayar</th>
             <th>No. Pinjaman</th>
             <th>Anggota</th>
-            <th>Ke</th>
-            <th>Total Bayar</th>
-            <th>Pokok / Bunga</th>
+            <th style="text-align: center;">Ke</th>
+            <th style="text-align: right;">Pokok (Rp)</th>
+            <th style="text-align: right;">Jasa / Bunga (Rp)</th>
+            <th style="text-align: right;">Total Bayar (Rp)</th>
             <th>Keterangan</th>
             <th style="width: 50px; text-align: center;">Aksi</th>
           </tr>
         </thead>
         <tbody>
           <?php if (empty($listAngsuran)): ?>
-            <tr><td colspan="8" style="text-align:center; padding:32px; color:var(--text-subtle);">Belum ada pembayaran angsuran tercatat.</td></tr>
+            <tr><td colspan="9" style="text-align:center; padding:32px; color:var(--text-subtle);">Belum ada pembayaran angsuran tercatat.</td></tr>
           <?php else: ?>
             <?php foreach ($listAngsuran as $a): ?>
               <tr>
                 <td><?= date('d/m/Y', strtotime($a['tanggal_bayar'])) ?></td>
                 <td><strong><?= htmlspecialchars($a['no_pinjaman']) ?></strong></td>
                 <td><?= htmlspecialchars($a['nama_anggota']) ?></td>
-                <td><span class="badge badge-info"><?= $a['angsuran_ke'] ?> / <?= $a['lama_bulan'] ?></span></td>
-                <td class="table-amount text-green"><?= rupiah($a['jumlah_bayar']) ?></td>
-                <td>
-                  <small style="color:var(--text-muted);">
-                    P: <?= rupiah($a['angsuran_pokok']) ?><br>
-                    B: <?= rupiah($a['angsuran_bunga']) ?>
-                  </small>
-                </td>
+                <td style="text-align: center;"><span class="badge badge-info"><?= $a['angsuran_ke'] ?> / <?= $a['lama_bulan'] ?></span></td>
+                <td class="table-amount"><?= nominal($a['angsuran_pokok']) ?></td>
+                <td class="table-amount"><?= nominal($a['angsuran_bunga']) ?></td>
+                <td class="table-amount text-green" style="font-weight: 700;"><?= nominal($a['jumlah_bayar']) ?></td>
                 <!-- Kolom Keterangan Menggantikan Kolom Petugas -->
                 <td>
                   <?php 
@@ -534,9 +531,9 @@ require_once __DIR__ . '/header.php';
             <tr>
               <th style="width: 130px;">No. Pinjaman</th>
               <th>Anggota</th>
-              <th style="width: 180px;">Plafon & Tenor</th>
-              <th style="width: 170px;">Cicilan / Bln</th>
-              <th style="width: 140px; text-align: right;">Sisa Pokok</th>
+              <th style="width: 180px; text-align: right;">Plafon & Tenor (Rp)</th>
+              <th style="width: 170px; text-align: right;">Cicilan / Bln (Rp)</th>
+              <th style="width: 140px; text-align: right;">Sisa Pokok (Rp)</th>
               <th style="width: 100px; text-align: center;">Status</th>
             </tr>
           </thead>
@@ -554,19 +551,19 @@ require_once __DIR__ . '/header.php';
                     <div style="font-weight: 700; color: var(--secondary);"><?= htmlspecialchars($pb['nama_anggota']) ?></div>
                     <small style="color: var(--text-muted);"><?= htmlspecialchars($pb['no_anggota']) ?></small>
                   </td>
-                  <td>
-                    <div><?= rupiah($pb['jumlah_pinjaman']) ?></div>
-                    <small style="color: var(--text-muted);"><?= $pb['lama_bulan'] ?> Bulan (<?= $pb['bunga_persen'] ?>%/bln)</small>
+                  <td class="table-amount">
+                    <div><?= nominal($pb['jumlah_pinjaman']) ?></div>
+                    <small style="color: var(--text-muted); display: block; text-align: right;"><?= $pb['lama_bulan'] ?> Bulan (<?= $pb['bunga_persen'] ?>%/bln)</small>
                   </td>
-                  <td style="white-space: nowrap;">
-                    <div class="table-amount text-blue" style="font-weight: 700;"><?= rupiah($pb['total_angsuran_bulanan']) ?></div>
-                    <div style="font-size: 0.74rem; color: var(--text-muted); margin-top: 2px; line-height: 1.35;">
-                      Pokok: <strong><?= rupiah($pb['angsuran_pokok']) ?></strong><br>
-                      Jasa: <strong><?= rupiah($pb['angsuran_bunga']) ?></strong>
+                  <td class="table-amount" style="white-space: nowrap;">
+                    <div class="text-blue" style="font-weight: 700;"><?= nominal($pb['total_angsuran_bulanan']) ?></div>
+                    <div style="font-size: 0.74rem; color: var(--text-muted); margin-top: 2px; line-height: 1.35; text-align: right;">
+                      Pokok: <strong><?= nominal($pb['angsuran_pokok']) ?></strong><br>
+                      Jasa: <strong><?= nominal($pb['angsuran_bunga']) ?></strong>
                     </div>
                   </td>
                   <td class="table-amount text-red" style="font-weight: 700; text-align: right;">
-                    <?= rupiah($sisaPokokPB) ?>
+                    <?= nominal($sisaPokokPB) ?>
                   </td>
                   <td style="text-align: center;">
                     <span class="badge badge-info" style="font-size: 0.85rem; font-weight: 700; padding: 4px 8px;">
@@ -624,10 +621,10 @@ require_once __DIR__ . '/header.php';
             <label class="form-label">Tanggal Bayar *</label>
             <div class="input-date-dmy" style="position: relative; display: flex; align-items: center;">
               <input type="text" id="edit_tanggal_bayar" name="tanggal_bayar" class="form-control date-dmy-input" placeholder="dd/mm/yyyy" maxlength="10" oninput="formatDmyInput(this)" required style="padding-right: 40px; font-weight: 600;">
-              <button type="button" class="btn-date-picker" onclick="triggerDatePicker(this)" style="position: absolute; right: 4px; background: none; border: none; padding: 6px 8px; cursor: pointer; color: var(--text-muted); display: flex; align-items: center;" title="Buka Kalender">
+              <button type="button" class="btn-date-picker" tabindex="-1" onclick="triggerDatePicker(this)" style="position: absolute; right: 4px; background: none; border: none; padding: 6px 8px; cursor: pointer; color: var(--text-muted); display: flex; align-items: center;" title="Buka Kalender">
                 <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
               </button>
-              <input type="date" id="edit_tanggal_bayar_native" class="native-date-hidden" onchange="syncNativeToDmy(this)" style="position: absolute; right: 0; bottom: 0; width: 0; height: 0; opacity: 0; border: none; pointer-events: none;">
+              <input type="date" id="edit_tanggal_bayar_native" class="native-date-hidden" tabindex="-1" onchange="syncNativeToDmy(this)" style="position: absolute; right: 0; bottom: 0; width: 0; height: 0; opacity: 0; border: none; pointer-events: none;">
             </div>
           </div>
         </div>
@@ -790,6 +787,25 @@ document.addEventListener('DOMContentLoaded', function() {
 
     searchInput.addEventListener('input', function() {
       filterOptions(this.value.trim().toLowerCase());
+    });
+
+    if (typeof initSearchDropdownKeyNav === 'function') {
+      initSearchDropdownKeyNav({
+        input: searchInput,
+        list: document.getElementById('pinjamanOptionsList'),
+        itemSelector: '.pinjaman-option',
+        onEscape: () => { menu.style.display = 'none'; }
+      });
+    }
+  }
+
+  const modalSearchInput = document.querySelector('input[data-table-search="tablePilihPinjamanModal"]');
+  if (modalSearchInput && typeof initSearchDropdownKeyNav === 'function') {
+    initSearchDropdownKeyNav({
+      input: modalSearchInput,
+      list: document.querySelector('#tablePilihPinjamanModal tbody'),
+      itemSelector: 'tr.loan-modal-row-clickable',
+      onEscape: () => { closeModal('modalPilihPinjaman'); }
     });
   }
 

@@ -119,7 +119,7 @@ include 'header.php';
       <thead>
         <tr style="background-color: #ffffff;">
           <th style="border: 2px solid #0f172a; padding: 10px 14px; font-size: 1rem; font-weight: 800; text-align: left; width: 170px; position: sticky; top: 0; z-index: 25; background-color: #ffffff;">
-            Tahun
+            Target Dana (Rp)
           </th>
           <?php foreach ($kolomTenor as $col): ?>
             <th style="border: 2px solid #0f172a; padding: 10px 14px; font-size: 1.05rem; font-weight: 800; text-align: right; position: sticky; top: 0; z-index: 25; background-color: #ffffff;">
@@ -129,7 +129,7 @@ include 'header.php';
         </tr>
         <tr style="background-color: #f8fafc;">
           <th style="border: 2px solid #0f172a; padding: 10px 14px; font-size: 1rem; font-weight: 800; text-align: left; background-color: #f8fafc; position: sticky; top: 46px; z-index: 25;">
-            Bulan
+            Tenor (Bulan)
           </th>
           <?php foreach ($kolomTenor as $col): ?>
             <th style="border: 2px solid #0f172a; padding: 10px 14px; font-size: 1.05rem; font-weight: 800; text-align: right; background-color: #f8fafc; position: sticky; top: 46px; z-index: 25;">
@@ -142,7 +142,7 @@ include 'header.php';
         <?php foreach ($matriks as $target => $barisTenor): ?>
           <tr class="matrix-row" style="border: 1.5px solid #0f172a; transition: background-color 0.15s ease;">
             <td style="border: 1.5px solid #0f172a; padding: 9px 14px; font-weight: 800; font-size: 0.98rem; text-align: right; background-color: #ffffff; color: #0f172a;">
-              <?= number_format($target, 0, ',', ',') ?>
+              <?= nominal($target) ?>
             </td>
             <?php foreach ($kolomTenor as $col): 
               $tenorBulan = $col['bulan'];
@@ -154,7 +154,7 @@ include 'header.php';
                   data-setoran="<?= $nominal ?>"
                   onclick="selectCell(<?= $target ?>, <?= $tenorBulan ?>)"
                   style="border: 1.5px solid #0f172a; padding: 9px 14px; font-size: 0.95rem; text-align: right; font-weight: 600; cursor: pointer;">
-                <?= number_format($nominal, 0, ',', ',') ?>
+                <?= nominal($nominal) ?>
               </td>
             <?php endforeach; ?>
           </tr>

@@ -185,6 +185,135 @@ $saldoAwalPeriode = (float)$db->query($sqlSaldoAwal)->fetchColumn();
 // 2. Ambil Semua Transaksi Periode Ini
 $allRows = $db->query($masterSql)->fetchAll(PDO::FETCH_ASSOC);
 
+// Konsolidasi Transaksi Potongan Gaji dan Potongan TPP pada Tanggal yang Sama
+$processedRows = [];
+$groupGaji = [];
+$groupTpp = [];
+$groupGajiTpp = [];
+
+foreach ($allRows as $r) {
+    $tgl = $r['tanggal'];
+    $modul = $r['modul'];
+    $masuk = (float)$r['kas_masuk'];
+    $metodeStr = strtolower(($r['metode_raw'] ?? '') . ' ' . ($r['metode_ket'] ?? ''));
+
+    $isEligibleModul = in_array($modul, ['simpanan', 'simpanan_pendidikan', 'angsuran']);
+
+    if ($isEligibleModul && $masuk > 0) {
+        $hasGaji = (strpos($metodeStr, 'gaji') !== false);
+        $hasTpp = (strpos($metodeStr, 'tpp') !== false);
+
+        if ($hasGaji && $hasTpp) {
+            if (!isset($groupGajiTpp[$tgl])) {
+                $groupGajiTpp[$tgl] = [
+                    'tanggal' => $tgl,
+                    'created_at' => $r['created_at'],
+                    'kas_masuk' => 0,
+                    'count' => 0
+                ];
+            }
+            $groupGajiTpp[$tgl]['kas_masuk'] += $masuk;
+            $groupGajiTpp[$tgl]['count']++;
+            continue;
+        } elseif ($hasGaji) {
+            if (!isset($groupGaji[$tgl])) {
+                $groupGaji[$tgl] = [
+                    'tanggal' => $tgl,
+                    'created_at' => $r['created_at'],
+                    'kas_masuk' => 0,
+                    'count' => 0
+                ];
+            }
+            $groupGaji[$tgl]['kas_masuk'] += $masuk;
+            $groupGaji[$tgl]['count']++;
+            continue;
+        } elseif ($hasTpp) {
+            if (!isset($groupTpp[$tgl])) {
+                $groupTpp[$tgl] = [
+                    'tanggal' => $tgl,
+                    'created_at' => $r['created_at'],
+                    'kas_masuk' => 0,
+                    'count' => 0
+                ];
+            }
+            $groupTpp[$tgl]['kas_masuk'] += $masuk;
+            $groupTpp[$tgl]['count']++;
+            continue;
+        }
+    }
+
+    $processedRows[] = $r;
+}
+
+// Tambahkan baris konsolidasi Gaji
+foreach ($groupGaji as $tgl => $grp) {
+    $blnName = nama_bulan((int)date('n', strtotime($tgl)));
+    $processedRows[] = [
+        'tanggal' => $tgl,
+        'created_at' => $grp['created_at'],
+        'no_transaksi' => 'POT-GAJI-' . date('Ymd', strtotime($tgl)),
+        'jenis_transaksi' => 'Potongan Gaji',
+        'modul' => 'simpanan',
+        'sub_jenis' => 'gaji',
+        'nama_anggota' => 'Kolektif Anggota',
+        'no_anggota' => 'KOLEKTIF',
+        'metode_raw' => 'Gaji',
+        'metode_ket' => 'Potongan Gaji Bulan ' . $blnName . ' (' . $grp['count'] . ' transaksi)',
+        'petugas' => 'Admin',
+        'kas_masuk' => $grp['kas_masuk'],
+        'kas_keluar' => 0
+    ];
+}
+
+// Tambahkan baris konsolidasi TPP
+foreach ($groupTpp as $tgl => $grp) {
+    $blnName = nama_bulan((int)date('n', strtotime($tgl)));
+    $processedRows[] = [
+        'tanggal' => $tgl,
+        'created_at' => $grp['created_at'],
+        'no_transaksi' => 'POT-TPP-' . date('Ymd', strtotime($tgl)),
+        'jenis_transaksi' => 'Potongan TPP',
+        'modul' => 'simpanan',
+        'sub_jenis' => 'tpp',
+        'nama_anggota' => 'Kolektif Anggota',
+        'no_anggota' => 'KOLEKTIF',
+        'metode_raw' => 'TPP',
+        'metode_ket' => 'Potongan TPP Bulan ' . $blnName . ' (' . $grp['count'] . ' transaksi)',
+        'petugas' => 'Admin',
+        'kas_masuk' => $grp['kas_masuk'],
+        'kas_keluar' => 0
+    ];
+}
+
+// Tambahkan baris konsolidasi Gaji & TPP jika ada
+foreach ($groupGajiTpp as $tgl => $grp) {
+    $blnName = nama_bulan((int)date('n', strtotime($tgl)));
+    $processedRows[] = [
+        'tanggal' => $tgl,
+        'created_at' => $grp['created_at'],
+        'no_transaksi' => 'POT-G&T-' . date('Ymd', strtotime($tgl)),
+        'jenis_transaksi' => 'Potongan Gaji & TPP',
+        'modul' => 'simpanan',
+        'sub_jenis' => 'gaji_tpp',
+        'nama_anggota' => 'Kolektif Anggota',
+        'no_anggota' => 'KOLEKTIF',
+        'metode_raw' => 'Gaji / TPP',
+        'metode_ket' => 'Potongan Gaji & TPP Bulan ' . $blnName . ' (' . $grp['count'] . ' transaksi)',
+        'petugas' => 'Admin',
+        'kas_masuk' => $grp['kas_masuk'],
+        'kas_keluar' => 0
+    ];
+}
+
+// Urutkan kembali berdasarkan tanggal ASC, created_at ASC
+usort($processedRows, function($a, $b) {
+    $cmp = strcmp($a['tanggal'], $b['tanggal']);
+    if ($cmp !== 0) return $cmp;
+    return strcmp($a['created_at'] ?? '', $b['created_at'] ?? '');
+});
+
+$allRows = $processedRows;
+
 // Filter data di level PHP sesuai parameter
 $filteredData = [];
 $totalMasukPeriode = 0;
@@ -394,10 +523,10 @@ include 'header.php';
         <label class="form-label" style="font-size: 0.8rem; margin-bottom: 4px;">Dari Tanggal:</label>
         <div class="input-date-dmy" style="position: relative; display: flex; align-items: center;">
           <input type="text" name="tgl_mulai" class="form-control date-dmy-input" value="<?= tgl_dmy($tglMulai) ?>" placeholder="dd/mm/yyyy" maxlength="10" oninput="formatDmyInput(this)" style="padding-right: 36px; font-size: 0.86rem;">
-          <button type="button" class="btn-date-picker" onclick="triggerDatePicker(this)" style="position: absolute; right: 2px; background: none; border: none; padding: 6px 8px; cursor: pointer; color: var(--text-muted);" title="Buka Kalender">
+          <button type="button" class="btn-date-picker" tabindex="-1" onclick="triggerDatePicker(this)" style="position: absolute; right: 2px; background: none; border: none; padding: 6px 8px; cursor: pointer; color: var(--text-muted);" title="Buka Kalender">
             <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
           </button>
-          <input type="date" class="native-date-hidden" value="<?= $tglMulai ?>" onchange="syncNativeToDmy(this)" style="position: absolute; right: 0; bottom: 0; width: 0; height: 0; opacity: 0; border: none; pointer-events: none;">
+          <input type="date" class="native-date-hidden" tabindex="-1" value="<?= $tglMulai ?>" onchange="syncNativeToDmy(this)" style="position: absolute; right: 0; bottom: 0; width: 0; height: 0; opacity: 0; border: none; pointer-events: none;">
         </div>
       </div>
 
@@ -406,10 +535,10 @@ include 'header.php';
         <label class="form-label" style="font-size: 0.8rem; margin-bottom: 4px;">Sampai Tanggal:</label>
         <div class="input-date-dmy" style="position: relative; display: flex; align-items: center;">
           <input type="text" name="tgl_selesai" class="form-control date-dmy-input" value="<?= tgl_dmy($tglSelesai) ?>" placeholder="dd/mm/yyyy" maxlength="10" oninput="formatDmyInput(this)" style="padding-right: 36px; font-size: 0.86rem;">
-          <button type="button" class="btn-date-picker" onclick="triggerDatePicker(this)" style="position: absolute; right: 2px; background: none; border: none; padding: 6px 8px; cursor: pointer; color: var(--text-muted);" title="Buka Kalender">
+          <button type="button" class="btn-date-picker" tabindex="-1" onclick="triggerDatePicker(this)" style="position: absolute; right: 2px; background: none; border: none; padding: 6px 8px; cursor: pointer; color: var(--text-muted);" title="Buka Kalender">
             <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
           </button>
-          <input type="date" class="native-date-hidden" value="<?= $tglSelesai ?>" onchange="syncNativeToDmy(this)" style="position: absolute; right: 0; bottom: 0; width: 0; height: 0; opacity: 0; border: none; pointer-events: none;">
+          <input type="date" class="native-date-hidden" tabindex="-1" value="<?= $tglSelesai ?>" onchange="syncNativeToDmy(this)" style="position: absolute; right: 0; bottom: 0; width: 0; height: 0; opacity: 0; border: none; pointer-events: none;">
         </div>
       </div>
 
@@ -483,8 +612,8 @@ include 'header.php';
           <th>Sumber Transaksi</th>
           <th>Anggota</th>
           <th>Metode & Keterangan</th>
-          <th style="text-align: right; width: 140px;">Kas Masuk</th>
-          <th style="text-align: right; width: 140px;">Kas Keluar</th>
+          <th style="text-align: right; width: 140px;">Kas Masuk (Rp)</th>
+          <th style="text-align: right; width: 140px;">Kas Keluar (Rp)</th>
           <th style="text-align: right; width: 155px;">Saldo Kas (Rp)</th>
         </tr>
       </thead>
@@ -499,7 +628,7 @@ include 'header.php';
           <td class="table-amount">-</td>
           <td class="table-amount">-</td>
           <td class="table-amount text-blue" style="font-weight: 800; font-size: 0.95rem;">
-            <?= rupiah($saldoAwalPeriode) ?>
+            <?= nominal($saldoAwalPeriode) ?>
           </td>
         </tr>
 
@@ -563,17 +692,17 @@ include 'header.php';
               
               <!-- Kas Masuk -->
               <td class="table-amount <?= $masuk > 0 ? 'text-green' : '' ?>" style="font-weight: 700;">
-                <?= $masuk > 0 ? rupiah($masuk) : '-' ?>
+                <?= $masuk > 0 ? nominal($masuk) : '-' ?>
               </td>
 
               <!-- Kas Keluar -->
               <td class="table-amount <?= $keluar > 0 ? 'text-red' : '' ?>" style="font-weight: 700;">
-                <?= $keluar > 0 ? rupiah($keluar) : '-' ?>
+                <?= $keluar > 0 ? nominal($keluar) : '-' ?>
               </td>
 
               <!-- Saldo Kumulatif -->
               <td class="table-amount" style="font-weight: 800; color: var(--secondary);">
-                <?= rupiah($row['saldo_kumulatif']) ?>
+                <?= nominal($row['saldo_kumulatif']) ?>
               </td>
             </tr>
           <?php endforeach; ?>
@@ -587,13 +716,13 @@ include 'header.php';
             TOTAL ARUS KAS PERIODE INI (<?= tgl_dmy($tglMulai) ?> s/d <?= tgl_dmy($tglSelesai) ?>)
           </td>
           <td class="table-amount text-green" style="font-size: 0.98rem;">
-            <?= rupiah($totalMasukPeriode) ?>
+            <?= nominal($totalMasukPeriode) ?>
           </td>
           <td class="table-amount text-red" style="font-size: 0.98rem;">
-            <?= rupiah($totalKeluarPeriode) ?>
+            <?= nominal($totalKeluarPeriode) ?>
           </td>
           <td class="table-amount text-blue" style="font-size: 1.05rem;">
-            <?= rupiah($saldoAkhirPeriode) ?>
+            <?= nominal($saldoAkhirPeriode) ?>
           </td>
         </tr>
       </tfoot>

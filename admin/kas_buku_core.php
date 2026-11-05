@@ -106,9 +106,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $kasKeluar = ($jenisTransaksi === 'keluar') ? $nominal : 0;
 
         try {
+            $db->beginTransaction();
+
+            // Cek data transaksi sebelum diedit
+            $stmtOld = $db->prepare("SELECT * FROM buku_kas WHERE id = ?");
+            $stmtOld->execute([$id]);
+            $oldRow = $stmtOld->fetch(PDO::FETCH_ASSOC);
+
+            if (!$oldRow) {
+                throw new Exception("Transaksi dengan ID {$id} tidak ditemukan.");
+            }
+
+            $oldNoBukti = $oldRow['no_bukti'] ?? '';
+            $isMutasi = (strpos($oldNoBukti, 'MUT-') === 0 || strpos($noBukti, 'MUT-') === 0 || strpos($kategori, '[Mutasi]') !== false);
+
+            // 1. Update baris transaksi yang sedang diedit
             $stmt = $db->prepare("UPDATE buku_kas SET 
                 tanggal = ?, no_bukti = ?, keterangan = ?, kategori = ?, jenis_transaksi = ?, kas_masuk = ?, kas_keluar = ?
-                WHERE id = ? AND tipe_kas = ?");
+                WHERE id = ?");
             $stmt->execute([
                 $tanggal,
                 $noBukti,
@@ -117,12 +132,53 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $jenisTransaksi,
                 $kasMasuk,
                 $kasKeluar,
-                $id,
-                $tipeKas
+                $id
             ]);
 
-            set_flash('success', "Transaksi (No. Bukti: {$noBukti}) berhasil diperbarui.");
+            // 2. Jika mutasi kas, update juga transaksi pasangannya di unit kas lain
+            if ($isMutasi && !empty($oldNoBukti)) {
+                $stmtPaired = $db->prepare("SELECT * FROM buku_kas WHERE no_bukti = ? AND id != ? LIMIT 1");
+                $stmtPaired->execute([$oldNoBukti, $id]);
+                $pairedRow = $stmtPaired->fetch(PDO::FETCH_ASSOC);
+
+                if ($pairedRow) {
+                    $pairedId = $pairedRow['id'];
+                    // Arah arus kebalikan dari sisi yang diedit
+                    $pairedJenis = ($jenisTransaksi === 'keluar') ? 'masuk' : 'keluar';
+                    $pairedMasuk = ($pairedJenis === 'masuk') ? $nominal : 0;
+                    $pairedKeluar = ($pairedJenis === 'keluar') ? $nominal : 0;
+
+                    // Keterangan pasangan disesuaikan jika user mengubah catatan
+                    $pairedKet = $pairedRow['keterangan'];
+                    if (strpos($keterangan, ' - ') !== false) {
+                        $catatanBaru = substr($keterangan, strpos($keterangan, ' - ') + 3);
+                        if (strpos($pairedKet, ' - ') !== false) {
+                            $baseKet = substr($pairedKet, 0, strpos($pairedKet, ' - '));
+                            $pairedKet = $baseKet . ' - ' . $catatanBaru;
+                        } else {
+                            $pairedKet = $pairedKet . ' - ' . $catatanBaru;
+                        }
+                    }
+
+                    $stmtUpdatePaired = $db->prepare("UPDATE buku_kas SET 
+                        tanggal = ?, no_bukti = ?, keterangan = ?, jenis_transaksi = ?, kas_masuk = ?, kas_keluar = ?
+                        WHERE id = ?");
+                    $stmtUpdatePaired->execute([
+                        $tanggal,
+                        $noBukti,
+                        $pairedKet,
+                        $pairedJenis,
+                        $pairedMasuk,
+                        $pairedKeluar,
+                        $pairedId
+                    ]);
+                }
+            }
+
+            $db->commit();
+            set_flash('success', "Transaksi (No. Bukti: {$noBukti}) berhasil diperbarui" . ($isMutasi ? " (sinkron di kedua rekening mutasi)" : "") . ".");
         } catch (Exception $e) {
+            if ($db->inTransaction()) $db->rollBack();
             set_flash('error', 'Gagal memperbarui transaksi: ' . $e->getMessage());
         }
 
@@ -446,10 +502,10 @@ include __DIR__ . '/header.php';
         <label class="form-label" style="font-size: 0.8rem; margin-bottom: 4px;">Dari Tanggal:</label>
         <div class="input-date-dmy" style="position: relative; display: flex; align-items: center;">
           <input type="text" name="tgl_mulai" class="form-control date-dmy-input" value="<?= tgl_dmy($tglMulai) ?>" placeholder="dd/mm/yyyy" maxlength="10" oninput="formatDmyInput(this)" style="padding-right: 36px; font-size: 0.86rem;">
-          <button type="button" class="btn-date-picker" onclick="triggerDatePicker(this)" style="position: absolute; right: 2px; background: none; border: none; padding: 6px 8px; cursor: pointer; color: var(--text-muted);" title="Buka Kalender">
+          <button type="button" class="btn-date-picker" tabindex="-1" onclick="triggerDatePicker(this)" style="position: absolute; right: 2px; background: none; border: none; padding: 6px 8px; cursor: pointer; color: var(--text-muted);" title="Buka Kalender">
             <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
           </button>
-          <input type="date" class="native-date-hidden" value="<?= $tglMulai ?>" onchange="syncNativeToDmy(this)" style="position: absolute; right: 0; bottom: 0; width: 0; height: 0; opacity: 0; border: none; pointer-events: none;">
+          <input type="date" class="native-date-hidden" tabindex="-1" value="<?= $tglMulai ?>" onchange="syncNativeToDmy(this)" style="position: absolute; right: 0; bottom: 0; width: 0; height: 0; opacity: 0; border: none; pointer-events: none;">
         </div>
       </div>
 
@@ -458,10 +514,10 @@ include __DIR__ . '/header.php';
         <label class="form-label" style="font-size: 0.8rem; margin-bottom: 4px;">Sampai Tanggal:</label>
         <div class="input-date-dmy" style="position: relative; display: flex; align-items: center;">
           <input type="text" name="tgl_selesai" class="form-control date-dmy-input" value="<?= tgl_dmy($tglSelesai) ?>" placeholder="dd/mm/yyyy" maxlength="10" oninput="formatDmyInput(this)" style="padding-right: 36px; font-size: 0.86rem;">
-          <button type="button" class="btn-date-picker" onclick="triggerDatePicker(this)" style="position: absolute; right: 2px; background: none; border: none; padding: 6px 8px; cursor: pointer; color: var(--text-muted);" title="Buka Kalender">
+          <button type="button" class="btn-date-picker" tabindex="-1" onclick="triggerDatePicker(this)" style="position: absolute; right: 2px; background: none; border: none; padding: 6px 8px; cursor: pointer; color: var(--text-muted);" title="Buka Kalender">
             <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
           </button>
-          <input type="date" class="native-date-hidden" value="<?= $tglSelesai ?>" onchange="syncNativeToDmy(this)" style="position: absolute; right: 0; bottom: 0; width: 0; height: 0; opacity: 0; border: none; pointer-events: none;">
+          <input type="date" class="native-date-hidden" tabindex="-1" value="<?= $tglSelesai ?>" onchange="syncNativeToDmy(this)" style="position: absolute; right: 0; bottom: 0; width: 0; height: 0; opacity: 0; border: none; pointer-events: none;">
         </div>
       </div>
 
@@ -528,9 +584,9 @@ include __DIR__ . '/header.php';
           <th style="width: 140px;">No. Bukti</th>
           <th>Keterangan</th>
           <th style="width: 220px;">Kategori</th>
-          <th style="text-align: right; width: 145px;">Kas Masuk</th>
-          <th style="text-align: right; width: 145px;">Kas Keluar</th>
-          <th style="text-align: right; width: 160px;">Saldo</th>
+          <th style="text-align: right; width: 145px;">Kas Masuk (Rp)</th>
+          <th style="text-align: right; width: 145px;">Kas Keluar (Rp)</th>
+          <th style="text-align: right; width: 160px;">Saldo (Rp)</th>
           <th style="text-align: center; width: 100px;" class="no-print">Aksi</th>
         </tr>
       </thead>
@@ -546,7 +602,7 @@ include __DIR__ . '/header.php';
           <td class="table-amount">-</td>
           <td class="table-amount">-</td>
           <td class="table-amount text-blue" style="font-weight: 800; font-size: 0.95rem;">
-            <?= rupiah($saldoAwalPeriode) ?>
+            <?= nominal($saldoAwalPeriode) ?>
           </td>
           <td class="no-print" style="text-align: center; color: var(--text-muted);">-</td>
         </tr>
@@ -582,17 +638,17 @@ include __DIR__ . '/header.php';
               
               <!-- Kas Masuk -->
               <td class="table-amount <?= $masuk > 0 ? 'text-green' : '' ?>" style="font-weight: 700;">
-                <?= $masuk > 0 ? rupiah($masuk) : '-' ?>
+                <?= $masuk > 0 ? nominal($masuk) : '-' ?>
               </td>
 
               <!-- Kas Keluar -->
               <td class="table-amount <?= $keluar > 0 ? 'text-red' : '' ?>" style="font-weight: 700;">
-                <?= $keluar > 0 ? rupiah($keluar) : '-' ?>
+                <?= $keluar > 0 ? nominal($keluar) : '-' ?>
               </td>
 
               <!-- Saldo -->
               <td class="table-amount" style="font-weight: 800; color: var(--secondary);">
-                <?= rupiah($row['saldo']) ?>
+                <?= nominal($row['saldo']) ?>
               </td>
 
               <!-- Aksi -->
@@ -623,13 +679,13 @@ include __DIR__ . '/header.php';
             TOTAL MUTASI PERIODE INI (<?= tgl_dmy($tglMulai) ?> s/d <?= tgl_dmy($tglSelesai) ?>)
           </td>
           <td class="table-amount text-green" style="font-size: 0.98rem;">
-            <?= rupiah($totalMasukPeriode) ?>
+            <?= nominal($totalMasukPeriode) ?>
           </td>
           <td class="table-amount text-red" style="font-size: 0.98rem;">
-            <?= rupiah($totalKeluarPeriode) ?>
+            <?= nominal($totalKeluarPeriode) ?>
           </td>
           <td class="table-amount text-blue" style="font-size: 1.05rem;">
-            <?= rupiah($saldoAkhirPeriode) ?>
+            <?= nominal($saldoAkhirPeriode) ?>
           </td>
           <td class="no-print"></td>
         </tr>
@@ -676,10 +732,10 @@ include __DIR__ . '/header.php';
             <label class="form-label">Tanggal Transaksi *</label>
             <div class="input-date-dmy" style="position: relative; display: flex; align-items: center;">
               <input type="text" name="tanggal" class="form-control date-dmy-input" value="<?= date('d/m/Y') ?>" placeholder="dd/mm/yyyy" maxlength="10" oninput="formatDmyInput(this)" required>
-              <button type="button" class="btn-date-picker" onclick="triggerDatePicker(this)" style="position: absolute; right: 2px; background: none; border: none; padding: 6px 8px; cursor: pointer; color: var(--text-muted);" title="Buka Kalender">
+              <button type="button" class="btn-date-picker" tabindex="-1" onclick="triggerDatePicker(this)" style="position: absolute; right: 2px; background: none; border: none; padding: 6px 8px; cursor: pointer; color: var(--text-muted);" title="Buka Kalender">
                 <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
               </button>
-              <input type="date" class="native-date-hidden" value="<?= date('Y-m-d') ?>" onchange="syncNativeToDmy(this)" style="position: absolute; right: 0; bottom: 0; width: 0; height: 0; opacity: 0; border: none; pointer-events: none;">
+              <input type="date" class="native-date-hidden" tabindex="-1" value="<?= date('Y-m-d') ?>" onchange="syncNativeToDmy(this)" style="position: absolute; right: 0; bottom: 0; width: 0; height: 0; opacity: 0; border: none; pointer-events: none;">
             </div>
           </div>
 
@@ -983,10 +1039,10 @@ include __DIR__ . '/header.php';
             <label class="form-label">Tanggal Transaksi *</label>
             <div class="input-date-dmy" style="position: relative; display: flex; align-items: center;">
               <input type="text" name="tanggal" class="form-control date-dmy-input" value="<?= date('d/m/Y') ?>" placeholder="dd/mm/yyyy" maxlength="10" oninput="formatDmyInput(this)" required>
-              <button type="button" class="btn-date-picker" onclick="triggerDatePicker(this)" style="position: absolute; right: 2px; background: none; border: none; padding: 6px 8px; cursor: pointer; color: var(--text-muted);" title="Buka Kalender">
+              <button type="button" class="btn-date-picker" tabindex="-1" onclick="triggerDatePicker(this)" style="position: absolute; right: 2px; background: none; border: none; padding: 6px 8px; cursor: pointer; color: var(--text-muted);" title="Buka Kalender">
                 <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
               </button>
-              <input type="date" class="native-date-hidden" value="<?= date('Y-m-d') ?>" onchange="syncNativeToDmy(this)" style="position: absolute; right: 0; bottom: 0; width: 0; height: 0; opacity: 0; border: none; pointer-events: none;">
+              <input type="date" class="native-date-hidden" tabindex="-1" value="<?= date('Y-m-d') ?>" onchange="syncNativeToDmy(this)" style="position: absolute; right: 0; bottom: 0; width: 0; height: 0; opacity: 0; border: none; pointer-events: none;">
             </div>
           </div>
 
@@ -1127,6 +1183,15 @@ function setupSearchableDropdown(type) {
     searchInput.addEventListener('input', function() {
       filterKategoriList(this.value.trim().toLowerCase());
     });
+
+    if (typeof initSearchDropdownKeyNav === 'function') {
+      initSearchDropdownKeyNav({
+        input: searchInput,
+        list: menu,
+        itemSelector: itemClass,
+        onEscape: () => { menu.style.display = 'none'; }
+      });
+    }
   }
 
   function filterKategoriList(keyword) {

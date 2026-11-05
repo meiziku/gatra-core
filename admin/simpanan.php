@@ -166,7 +166,7 @@ require_once __DIR__ . '/header.php';
           <th>Nama Anggota</th>
           <th>Jenis Simpanan</th>
           <th>Tipe</th>
-          <th>Nominal</th>
+          <th style="text-align: right; width: 140px;">Nominal (Rp)</th>
           <th>Keterangan</th>
           <th style="width: 90px; text-align: center;">Aksi</th>
         </tr>
@@ -192,7 +192,7 @@ require_once __DIR__ . '/header.php';
                 </span>
               </td>
               <td class="table-amount <?= $s['tipe_transaksi'] === 'setor' ? 'text-green' : 'text-red' ?>">
-                <?= ($s['tipe_transaksi'] === 'setor' ? '+' : '-') ?> <?= rupiah($s['nominal']) ?>
+                <?= ($s['tipe_transaksi'] === 'setor' ? '+' : '-') ?> <?= nominal($s['nominal']) ?>
               </td>
               <td>
                 <?php 
@@ -347,10 +347,10 @@ require_once __DIR__ . '/header.php';
             <label class="form-label">Tanggal Transaksi *</label>
             <div class="input-date-dmy" style="position: relative; display: flex; align-items: center;">
               <input type="text" name="tanggal" class="form-control date-dmy-input" value="<?= date('d/m/Y') ?>" placeholder="dd/mm/yyyy" maxlength="10" oninput="formatDmyInput(this)" required style="padding-right: 40px; font-weight: 600;">
-              <button type="button" class="btn-date-picker" onclick="triggerDatePicker(this)" style="position: absolute; right: 4px; background: none; border: none; padding: 6px 8px; cursor: pointer; color: var(--text-muted); display: flex; align-items: center;" title="Buka Kalender">
+              <button type="button" class="btn-date-picker" tabindex="-1" onclick="triggerDatePicker(this)" style="position: absolute; right: 4px; background: none; border: none; padding: 6px 8px; cursor: pointer; color: var(--text-muted); display: flex; align-items: center;" title="Buka Kalender">
                 <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
               </button>
-              <input type="date" class="native-date-hidden" value="<?= date('Y-m-d') ?>" onchange="syncNativeToDmy(this)" style="position: absolute; right: 0; bottom: 0; width: 0; height: 0; opacity: 0; border: none; pointer-events: none;">
+              <input type="date" class="native-date-hidden" tabindex="-1" value="<?= date('Y-m-d') ?>" onchange="syncNativeToDmy(this)" style="position: absolute; right: 0; bottom: 0; width: 0; height: 0; opacity: 0; border: none; pointer-events: none;">
             </div>
           </div>
         </div>
@@ -467,10 +467,10 @@ require_once __DIR__ . '/header.php';
             <label class="form-label">Tanggal Transaksi *</label>
             <div class="input-date-dmy" style="position: relative; display: flex; align-items: center;">
               <input type="text" name="tanggal" id="edit_simpanan_tanggal" class="form-control date-dmy-input" placeholder="dd/mm/yyyy" maxlength="10" oninput="formatDmyInput(this)" required style="padding-right: 40px; font-weight: 600;">
-              <button type="button" class="btn-date-picker" onclick="triggerDatePicker(this)" style="position: absolute; right: 4px; background: none; border: none; padding: 6px 8px; cursor: pointer; color: var(--text-muted); display: flex; align-items: center;" title="Buka Kalender">
+              <button type="button" class="btn-date-picker" tabindex="-1" onclick="triggerDatePicker(this)" style="position: absolute; right: 4px; background: none; border: none; padding: 6px 8px; cursor: pointer; color: var(--text-muted); display: flex; align-items: center;" title="Buka Kalender">
                 <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
               </button>
-              <input type="date" id="edit_simpanan_native_date" class="native-date-hidden" onchange="syncNativeToDmy(this)" style="position: absolute; right: 0; bottom: 0; width: 0; height: 0; opacity: 0; border: none; pointer-events: none;">
+              <input type="date" id="edit_simpanan_native_date" class="native-date-hidden" tabindex="-1" onchange="syncNativeToDmy(this)" style="position: absolute; right: 0; bottom: 0; width: 0; height: 0; opacity: 0; border: none; pointer-events: none;">
             </div>
           </div>
         </div>
@@ -635,6 +635,15 @@ document.addEventListener('DOMContentLoaded', function() {
       searchInput.addEventListener('input', function() {
         filterAnggotaSimpanan(this.value.trim().toLowerCase());
       });
+
+      if (typeof initSearchDropdownKeyNav === 'function') {
+        initSearchDropdownKeyNav({
+          input: searchInput,
+          list: document.getElementById('simpananAnggotaList'),
+          itemSelector: '.simpanan-anggota-opt',
+          onEscape: () => { menu.style.display = 'none'; }
+        });
+      }
     }
 
     function filterAnggotaSimpanan(keyword) {

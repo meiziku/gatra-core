@@ -148,8 +148,8 @@ $recentPinjaman = $db->query("
           <tr>
             <th>No. Pinjaman</th>
             <th>Anggota</th>
-            <th>Pinjaman</th>
-            <th>Sisa Tagihan</th>
+            <th style="text-align: right;">Pinjaman (Rp)</th>
+            <th style="text-align: right;">Sisa Tagihan (Rp)</th>
             <th>Progress</th>
           </tr>
         </thead>
@@ -167,8 +167,8 @@ $recentPinjaman = $db->query("
                   <div><?= htmlspecialchars($p['nama_anggota']) ?></div>
                   <small style="color:var(--text-subtle)"><?= htmlspecialchars($p['no_anggota']) ?></small>
                 </td>
-                <td class="table-amount"><?= rupiah($p['jumlah_pinjaman']) ?></td>
-                <td class="table-amount text-red"><?= rupiah($sisa) ?></td>
+                <td class="table-amount"><?= nominal($p['jumlah_pinjaman']) ?></td>
+                <td class="table-amount text-red"><?= nominal($sisa) ?></td>
                 <td>
                   <div style="display:flex; align-items:center; gap:8px;">
                     <div style="flex:1; background:#e2e8f0; height:6px; border-radius:3px; overflow:hidden;">
@@ -198,7 +198,7 @@ $recentPinjaman = $db->query("
             <th>Tanggal</th>
             <th>Anggota</th>
             <th>Jenis</th>
-            <th>Nominal</th>
+            <th style="text-align: right;">Nominal (Rp)</th>
             <th>Status</th>
           </tr>
         </thead>
@@ -217,7 +217,7 @@ $recentPinjaman = $db->query("
                   <span class="badge badge-info"><?= ucfirst($s['jenis_simpanan']) ?></span>
                 </td>
                 <td class="table-amount <?= $s['tipe_transaksi'] === 'setor' ? 'text-green' : 'text-red' ?>">
-                  <?= ($s['tipe_transaksi'] === 'setor' ? '+' : '-') ?> <?= rupiah($s['nominal']) ?>
+                  <?= ($s['tipe_transaksi'] === 'setor' ? '+' : '-') ?> <?= nominal($s['nominal']) ?>
                 </td>
                 <td>
                   <span class="badge <?= $s['tipe_transaksi'] === 'setor' ? 'badge-success' : 'badge-danger' ?>">

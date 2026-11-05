@@ -676,11 +676,28 @@ a:hover {
 .badge-amount,
 [class*="table-amount"],
 .nominal-nowrap {
+  text-align: right !important;
   font-family: monospace, sans-serif;
+  font-variant-numeric: tabular-nums;
   font-weight: 700;
   font-size: 0.92rem;
   white-space: nowrap !important;
   word-break: keep-all !important;
+}
+
+/* Active Highlight for Keyboard Dropdown Navigation */
+.dropdown-item-active,
+.pinjaman-option.dropdown-item-active,
+.simpanan-anggota-opt.dropdown-item-active,
+.pinjaman-anggota-opt.dropdown-item-active,
+.sp-anggota-opt.dropdown-item-active,
+.kategori-opt-item-tambah.dropdown-item-active,
+.kategori-opt-item-edit.dropdown-item-active,
+.loan-modal-row-clickable.dropdown-item-active,
+tr.dropdown-item-active td {
+  background-color: #dbeafe !important;
+  color: #1e40af !important;
+  outline: 2px solid #3b82f6 !important;
 }
 .text-green { color: var(--primary); }
 .text-red { color: var(--danger); }

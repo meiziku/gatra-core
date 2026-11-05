@@ -195,4 +195,94 @@ document.addEventListener('DOMContentLoaded', function () {
   window.printPage = function () {
     window.print();
   };
+
+  // 7. Enforce Tab Navigation to Skip Calendar Icon Button
+  function enforceDatepickerTabindex() {
+    document.querySelectorAll('.btn-date-picker').forEach(btn => {
+      btn.setAttribute('tabindex', '-1');
+    });
+    document.querySelectorAll('.native-date-hidden').forEach(picker => {
+      picker.setAttribute('tabindex', '-1');
+    });
+  }
+  enforceDatepickerTabindex();
+
+  // 8. Reusable Keyboard Arrow and Enter Navigation for Searchable Dropdowns
+  window.initSearchDropdownKeyNav = function(options) {
+    const input = (typeof options.input === 'string') ? document.querySelector(options.input) : options.input;
+    if (!input) return;
+
+    let activeIdx = -1;
+
+    function getVisibleItems() {
+      if (typeof options.getItems === 'function') {
+        return options.getItems();
+      }
+      const list = (typeof options.list === 'string') ? document.querySelector(options.list) : options.list;
+      if (!list) return [];
+      return Array.from(list.querySelectorAll(options.itemSelector || '.dropdown-item'))
+        .filter(el => {
+          if (el.style.display === 'none') return false;
+          if (el.classList.contains('is-empty-notice') || (el.id && el.id.toLowerCase().includes('empty'))) return false;
+          let p = el.parentElement;
+          if (p && p.style && p.style.display === 'none') return false;
+          return true;
+        });
+    }
+
+    function highlight(items, index) {
+      items.forEach((item, i) => {
+        if (i === index) {
+          item.classList.add('dropdown-item-active');
+          item.scrollIntoView({ block: 'nearest' });
+        } else {
+          item.classList.remove('dropdown-item-active');
+        }
+      });
+    }
+
+    input.addEventListener('keydown', function(e) {
+      const items = getVisibleItems();
+      if (!items.length) return;
+
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        activeIdx = (activeIdx + 1) % items.length;
+        highlight(items, activeIdx);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        activeIdx = (activeIdx - 1 + items.length) % items.length;
+        highlight(items, activeIdx);
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (activeIdx >= 0 && activeIdx < items.length) {
+          if (typeof options.onSelect === 'function') {
+            options.onSelect(items[activeIdx]);
+          } else {
+            items[activeIdx].click();
+          }
+        } else if (items.length > 0) {
+          if (typeof options.onSelect === 'function') {
+            options.onSelect(items[0]);
+          } else {
+            items[0].click();
+          }
+        }
+        activeIdx = -1;
+        highlight(items, -1);
+      } else if (e.key === 'Escape') {
+        activeIdx = -1;
+        highlight(items, -1);
+        if (typeof options.onEscape === 'function') {
+          options.onEscape();
+        }
+      }
+    });
+
+    input.addEventListener('input', function() {
+      activeIdx = -1;
+      const items = getVisibleItems();
+      highlight(items, -1);
+    });
+  };
 });
